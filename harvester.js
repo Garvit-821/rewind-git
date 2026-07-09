@@ -132,29 +132,7 @@ export function harvest(repoPath = process.cwd()) {
         commits.push(currentCommit);
       }
       
-      // Secondary pass: Fetch contents of files dynamically
-      logInfo("Fetching changed file contents from Git history...");
-      const fetchPromises = [];
-      commits.forEach(commit => {
-        commit.details.forEach(detail => {
-          if (detail.status !== 'D') {
-            const p = getFileContent(repoPath, commit.id, detail.path)
-              .then(content => {
-                detail.content = content;
-              });
-            fetchPromises.push(p);
-          } else {
-            detail.content = "";
-          }
-        });
-      });
-
-      Promise.all(fetchPromises)
-        .then(() => {
-          logInfo("Successfully loaded file contents.");
-          resolve(commits);
-        })
-        .catch(reject);
+      resolve(commits);
     });
   });
 }

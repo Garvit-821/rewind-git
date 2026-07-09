@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import RewindCanvas from './components/RewindCanvas';
 import FileTree from './components/FileTree';
 import CodeViewer from './components/CodeViewer';
@@ -25,11 +25,45 @@ export default function App() {
   // Time-travel index: starts at the most recent commit
   const [sliderVal, setSliderVal] = useState(0);
 
+  const [fileContentsCache, setFileContentsCache] = useState({});
+
+  // Helper to fetch file content dynamically from backend
+  const fetchFileContent = async (commitId, filePath) => {
+    if (!repoInput) return '';
+    const cacheKey = `${commitId}:${filePath}`;
+    if (fileContentsCache[cacheKey] !== undefined) {
+      return fileContentsCache[cacheKey];
+    }
+
+    try {
+      const response = await fetch('http://localhost:3001/api/file-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repoPath: repoInput || 'sample',
+          commitId,
+          filePath
+        })
+      });
+      if (!response.ok) throw new Error('Failed to load file');
+      const data = await response.json();
+      setFileContentsCache(prev => ({
+        ...prev,
+        [cacheKey]: data.content
+      }));
+      return data.content;
+    } catch (err) {
+      console.error(err);
+      return '';
+    }
+  };
+
   // Dynamically update the slider default value when new commits are loaded
   const updateCommits = (newCommits) => {
     setCommits(newCommits);
     setSliderVal(newCommits.length > 0 ? newCommits.length - 1 : 0);
     setSelectedFilePath(null);
+    setFileContentsCache({}); // Reset cache
   };
 
   // Reconstruct file explorer state at selected timeline
@@ -42,10 +76,15 @@ export default function App() {
         if (detail.status.startsWith('D')) {
           delete fileStates[detail.path];
         } else {
+          const cacheKey = `${commit.id}:${detail.path}`;
+          const contentVal = fileContentsCache[cacheKey] !== undefined 
+            ? fileContentsCache[cacheKey] 
+            : (detail.content || '');
+
           fileStates[detail.path] = {
             path: detail.path,
             status: detail.status,
-            content: detail.content || '',
+            content: contentVal,
             commitId: commit.id,
             commitMessage: commit.message,
             author: commit.author,
@@ -55,7 +94,7 @@ export default function App() {
       });
     }
     return Object.values(fileStates);
-  }, [sliderVal, sortedCommits]);
+  }, [sliderVal, sortedCommits, fileContentsCache]);
 
   // Current selected file details
   const selectedFile = useMemo(() => {
@@ -72,11 +111,40 @@ export default function App() {
       if (!commit) continue;
       const match = commit.details.find(d => d.path === selectedFile.path);
       if (match) {
+        const cacheKey = `${commit.id}:${selectedFile.path}`;
+        if (fileContentsCache[cacheKey] !== undefined) {
+          return fileContentsCache[cacheKey];
+        }
         return match.content || '';
       }
     }
     return '';
-  }, [selectedFile, sliderVal, sortedCommits]);
+  }, [selectedFile, sliderVal, sortedCommits, fileContentsCache]);
+
+  // Trigger on-demand fetching of active file contents
+  useEffect(() => {
+    if (!selectedFilePath || !selectedFile) return;
+    
+    // Load current version
+    fetchFileContent(selectedFile.commitId, selectedFile.path);
+
+    // Load previous version (for diff calculations)
+    if (sliderVal > 0) {
+      let prevCommitId = null;
+      for (let i = sliderVal - 1; i >= 0; i--) {
+        const commit = sortedCommits[i];
+        if (!commit) continue;
+        const match = commit.details.find(d => d.path === selectedFile.path);
+        if (match) {
+          prevCommitId = commit.id;
+          break;
+        }
+      }
+      if (prevCommitId) {
+        fetchFileContent(prevCommitId, selectedFile.path);
+      }
+    }
+  }, [selectedFilePath, sliderVal, selectedFile, sortedCommits]);
 
   // Generate real-time mock git output inside the integrated terminal
   const terminalContent = useMemo(() => {
@@ -166,6 +234,7 @@ export default function App() {
     setCommits(null);
     setRepoInput('');
     setErrorMessage('');
+    setFileContentsCache({});
   };
 
   // Derive statistics

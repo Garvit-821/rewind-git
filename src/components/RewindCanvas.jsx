@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
+import CommitTimeline from './CommitTimeline';
 
 // Neon colors assigned to branches
 const BRANCH_COLORS = {
@@ -8,13 +9,13 @@ const BRANCH_COLORS = {
 };
 
 // Physics constants
-const K_REPULSION = 2000;    // Antigravity repulsion coefficient
-const DECAY_SCALE = 100;     // Spatial scale of repulsion decay
-const K_SPRING = 0.05;       // Hooke's Law spring coefficient
+const K_REPULSION = 150;     // Mild repulsion to prevent aggressive shaking and overlap
+const DECAY_SCALE = 80;      // Spatial scale of repulsion decay
+const K_SPRING = 0.02;       // Hooke's Law spring coefficient
 const REST_LENGTH = 120;     // Preferred link distance
-const K_TARGET_X = 0.08;     // Horizontal chronological alignment pull
-const K_TARGET_Y = 0.08;     // Vertical branch lane alignment pull
-const DAMPING = 0.72;        // Friction coefficient to stabilize system (lower value = faster dampening)
+const K_TARGET_X = 0.06;     // Horizontal chronological alignment pull
+const K_TARGET_Y = 0.06;     // Vertical branch lane alignment pull
+const DAMPING = 0.55;        // Lower damping (higher friction) stabilizes the system rapidly
 const VERTICAL_SPACING = 90; // Gap between parallel branch lanes
 const HORIZONTAL_SPACING = 150; // Chronological separation
 
@@ -29,6 +30,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
   
   // UI Hover States
   const [hoveredNode, setHoveredNode] = useState(null);
+  const [hoveredLeaf, setHoveredLeaf] = useState(null);
   const [hudPos, setHudPos] = useState({ x: 0, y: 0 });
 
   // Physics and interaction refs (to bypass React re-renders on the physics frame loop)
@@ -177,8 +179,8 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
     // Initial center adjustment once canvas size is resolved
     setTimeout(() => {
       const s = stateRef.current;
-      s.pan.x = canvas.width / 2 - 100;
-      s.pan.y = canvas.height / 2;
+      s.pan.x = canvas.width / 2;
+      s.pan.y = canvas.height - 180;
     }, 100);
 
     const runPhysicsAndRender = () => {
@@ -196,9 +198,18 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
         const node = s.nodes[commit.id];
         if (!node) return;
 
-        // Horizontally layout nodes based on chronological order (index)
-        node.targetX = index * HORIZONTAL_SPACING;
-        node.targetY = node.yOffset;
+        // Vertical Yggdrasil Tree Layout: Grow upwards
+        // Root commit (index 0) near base, growing upwards (subtracting index * 130)
+        node.targetY = -index * 130 + 150;
+        
+        // Symmetrical branch lanes: main (lane 0) in center, features left, hotfixes right
+        let xOffset = 0;
+        if (node.lane > 0) {
+          const direction = node.lane % 2 === 1 ? -1 : 1;
+          const level = Math.ceil(node.lane / 2);
+          xOffset = direction * level * 120;
+        }
+        node.targetX = xOffset;
 
         // Visual growth interpolation
         const targetScale = node.active ? 1.0 : 0.0;
@@ -291,12 +302,16 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
           node.vx *= DAMPING;
           node.vy *= DAMPING;
 
-          // Cap velocity to prevent high-speed shaking
+          // Cap velocity and settle micro-vibrations
           const speed = Math.sqrt(node.vx * node.vx + node.vy * node.vy);
-          const maxSpeed = 10;
+          const maxSpeed = 8;
           if (speed > maxSpeed) {
             node.vx = (node.vx / speed) * maxSpeed;
             node.vy = (node.vy / speed) * maxSpeed;
+          }
+          if (speed < 0.08) {
+            node.vx = 0;
+            node.vy = 0;
           }
 
           // Lock dragged node to mouse
@@ -354,8 +369,38 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
         ctx.stroke();
       }
 
-      // DRAW EDGES (Parent-child connection lines)
-      ctx.lineWidth = 3.5;
+      // DRAW ORGANIC TRUNK (Under the root node)
+      const rootCommit = sortedCommits[0];
+      const rootNode = rootCommit ? s.nodes[rootCommit.id] : null;
+      if (rootNode && rootNode.opacity > 0.05) {
+        ctx.save();
+        ctx.globalAlpha = rootNode.opacity * 0.22;
+
+        const trunkGrad = ctx.createLinearGradient(0, rootNode.y + 180, 0, rootNode.y);
+        trunkGrad.addColorStop(0, 'rgba(30, 41, 59, 0.0)');
+        trunkGrad.addColorStop(0.3, 'rgba(47, 54, 71, 0.3)');
+        trunkGrad.addColorStop(0.7, 'rgba(74, 85, 104, 0.5)');
+        trunkGrad.addColorStop(1, rootNode.color);
+
+        ctx.fillStyle = trunkGrad;
+        ctx.beginPath();
+        ctx.moveTo(rootNode.x - 24, rootNode.y + 180);
+        ctx.bezierCurveTo(
+          rootNode.x - 12, rootNode.y + 100,
+          rootNode.x - 8, rootNode.y + 40,
+          rootNode.x, rootNode.y
+        );
+        ctx.bezierCurveTo(
+          rootNode.x + 8, rootNode.y + 40,
+          rootNode.x + 12, rootNode.y + 100,
+          rootNode.x + 24, rootNode.y + 180
+        );
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // DRAW EDGES (Tapered organic tree limbs connecting parents and children)
       activeNodes.forEach(node => {
         if (node.opacity < 0.05) return;
 
@@ -364,17 +409,21 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
           if (parentNode && parentNode.opacity >= 0.05) {
             const opacity = Math.min(node.opacity, parentNode.opacity) * 0.4;
             
-            // Draw custom glowing curved connectors (Bezier curve)
             ctx.beginPath();
             ctx.moveTo(parentNode.x, parentNode.y);
 
-            // Compute midpoint and Bezier control points for organic flow
-            const midX = (parentNode.x + node.x) / 2;
+            // Compute midpoint and Bezier control points for vertical organic flow
+            const midY = (parentNode.y + node.y) / 2;
             ctx.bezierCurveTo(
-              midX + 20, parentNode.y,
-              midX - 20, node.y,
+              parentNode.x, midY,
+              node.x, midY,
               node.x, node.y
             );
+
+            // Taper thickness: base of tree is thicker, twigs higher up are thinner
+            const parentIdx = sortedCommits.findIndex(c => c.id === parentNode.commit.id);
+            const branchWidth = Math.max(7.5 - parentIdx * 0.45, 2.5);
+            ctx.lineWidth = branchWidth;
 
             // Create gradient line between parents and children
             const grad = ctx.createLinearGradient(parentNode.x, parentNode.y, node.x, node.y);
@@ -431,6 +480,75 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
           ctx.stroke();
         }
 
+        // DRAW ORGANIC LEAVES (depicting files changed in this commit)
+        const details = node.commit.details || [];
+        const leafCount = Math.min(details.length, 6);
+        
+        for (let j = 0; j < leafCount; j++) {
+          const file = details[j];
+          // Fan out leaves upwards/outwards: -90 degrees center angle, spread by 0.45 rad
+          const angle = -Math.PI / 2 + (j - (leafCount - 1) / 2) * 0.45;
+          const leafScale = node.scale;
+          
+          const leafBaseX = node.x + Math.cos(angle) * (size + 3 * leafScale);
+          const leafBaseY = node.y + Math.sin(angle) * (size + 3 * leafScale);
+          const leafTipX = node.x + Math.cos(angle) * (size + 20 * leafScale);
+          const leafTipY = node.y + Math.sin(angle) * (size + 20 * leafScale);
+
+          // Control points for organic quadratic curves to form leaf blade
+          const leftAngle = angle - 0.28;
+          const rightAngle = angle + 0.28;
+          const ctrlDist = size + 11 * leafScale;
+          const ctrlLeftX = node.x + Math.cos(leftAngle) * ctrlDist;
+          const ctrlLeftY = node.y + Math.sin(leftAngle) * ctrlDist;
+          const ctrlRightX = node.x + Math.cos(rightAngle) * ctrlDist;
+          const ctrlRightY = node.y + Math.sin(rightAngle) * ctrlDist;
+
+          // Green for additions, Amber for modifications, Red for deletions
+          let leafColor = '#10b981'; // green
+          if (file.status.startsWith('M')) {
+            leafColor = '#f59e0b'; // amber
+          } else if (file.status.startsWith('D')) {
+            leafColor = '#ef4444'; // red
+          }
+
+          // Draw stem twig
+          ctx.beginPath();
+          ctx.moveTo(node.x, node.y);
+          ctx.lineTo(leafBaseX, leafBaseY);
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+          ctx.lineWidth = 1 * leafScale;
+          ctx.stroke();
+
+          // Draw leaf shape body
+          ctx.beginPath();
+          ctx.moveTo(leafBaseX, leafBaseY);
+          ctx.quadraticCurveTo(ctrlLeftX, ctrlLeftY, leafTipX, leafTipY);
+          ctx.quadraticCurveTo(ctrlRightX, ctrlRightY, leafBaseX, leafBaseY);
+          ctx.fillStyle = leafColor;
+          ctx.fill();
+
+          // Draw central vein details
+          ctx.beginPath();
+          ctx.moveTo(leafBaseX, leafBaseY);
+          ctx.lineTo(leafTipX, leafTipY);
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+          ctx.lineWidth = 0.8 * leafScale;
+          ctx.stroke();
+
+          // Highlight hovered leaf
+          const isLeafHovered = hoveredLeaf && 
+                               hoveredLeaf.file.path === file.path && 
+                               hoveredLeaf.commitId === node.commit.id;
+          if (isLeafHovered) {
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(leafTipX - Math.cos(angle)*6, leafTipY - Math.sin(angle)*6, 8 * leafScale, 0, 2 * Math.PI);
+            ctx.stroke();
+          }
+        }
+
         ctx.restore();
       });
 
@@ -440,6 +558,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
       // 4. MOUSE HOVER DETECTION (Calculated in UI space)
       // ----------------------------------------------------
       let nextHoveredNode = null;
+      let nextHoveredLeaf = null;
       const worldMouseX = (s.mouse.x - s.pan.x) / s.zoom;
       const worldMouseY = (s.mouse.y - s.pan.y) / s.zoom;
 
@@ -447,29 +566,69 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
         const node = activeNodes[i];
         if (node.opacity < 0.1) continue;
 
+        const size = 15 * node.scale;
+
+        // Check if mouse is hovering over the node core
         const dx = node.x - worldMouseX;
         const dy = node.y - worldMouseY;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        if (dist <= 22) {
+        if (dist <= size + 5) {
           nextHoveredNode = node;
           break;
         }
+
+        // Check if mouse is hovering over any leaf of this node
+        const details = node.commit.details || [];
+        const count = Math.min(details.length, 6);
+        for (let j = 0; j < count; j++) {
+          const file = details[j];
+          const angle = -Math.PI / 2 + (j - (count - 1) / 2) * 0.45;
+          const leafScale = node.scale;
+          const leafDist = size + 16 * leafScale; // Center of leaf
+          const leafX = node.x + Math.cos(angle) * leafDist;
+          const leafY = node.y + Math.sin(angle) * leafDist;
+
+          const ldx = leafX - worldMouseX;
+          const ldy = leafY - worldMouseY;
+          const ldist = Math.sqrt(ldx * ldx + ldy * ldy);
+
+          if (ldist <= 12) {
+            nextHoveredLeaf = {
+              file,
+              commitId: node.commit.id,
+              commitMessage: node.commit.message,
+              author: node.commit.author,
+              color: node.color
+            };
+            break;
+          }
+        }
+        if (nextHoveredLeaf) break;
       }
 
       if (nextHoveredNode) {
         if (!hoveredNode || hoveredNode.id !== nextHoveredNode.id) {
           setHoveredNode(nextHoveredNode.commit);
+          setHoveredLeaf(null);
           // Set HUD position offset from the screen mouse location
           setHudPos({
             x: s.mouse.x + 20,
             y: s.mouse.y - 40
           });
         }
-      } else {
-        if (hoveredNode) {
+      } else if (nextHoveredLeaf) {
+        if (!hoveredLeaf || hoveredLeaf.file.path !== nextHoveredLeaf.file.path || hoveredLeaf.commitId !== nextHoveredLeaf.commitId) {
           setHoveredNode(null);
+          setHoveredLeaf(nextHoveredLeaf);
+          setHudPos({
+            x: s.mouse.x + 20,
+            y: s.mouse.y - 40
+          });
         }
+      } else {
+        if (hoveredNode) setHoveredNode(null);
+        if (hoveredLeaf) setHoveredLeaf(null);
       }
 
       animationFrameId = requestAnimationFrame(runPhysicsAndRender);
@@ -565,8 +724,8 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
     const s = stateRef.current;
     s.zoom = 1.0;
     s.pan = {
-      x: canvasRef.current.width / 2 - 100,
-      y: canvasRef.current.height / 2
+      x: canvasRef.current.width / 2,
+      y: canvasRef.current.height - 180
     };
   };
 
@@ -713,6 +872,59 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
           )}
         </div>
       )}
+      {/* Floating leaf HUD details overlay */}
+      {hoveredLeaf && (
+        <div
+          className="floating-hud-overlay leaf-hud-overlay"
+          style={{
+            position: 'absolute',
+            left: `${hudPos.x}px`,
+            top: `${hudPos.y}px`,
+            transform: 'translateY(-100%)',
+            background: 'rgba(11, 15, 25, 0.94)',
+            border: `1px solid ${hoveredLeaf.color || 'rgba(255, 255, 255, 0.2)'}`,
+            boxShadow: `0 8px 32px rgba(0, 0, 0, 0.5), 0 0 15px ${(hoveredLeaf.color || '#ffffff')}44`,
+            borderRadius: '12px',
+            padding: '12px 16px',
+            color: '#f3f4f6',
+            width: '280px',
+            fontFamily: 'ui-monospace, Consolas, monospace',
+            fontSize: '12px',
+            pointerEvents: 'none',
+            zIndex: 100,
+            backdropFilter: 'blur(12px)',
+            transition: 'all 0.15s'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '4px' }}>
+            <span style={{ color: '#10b981', fontWeight: 'bold', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Leaf (File Change)
+            </span>
+            <span style={{ opacity: 0.6, fontSize: '10px' }}>
+              in {hoveredLeaf.commitId.substring(0, 7)}
+            </span>
+          </div>
+
+          <div style={{ wordBreak: 'break-all', fontWeight: 'bold', color: '#fff', fontSize: '12.5px', marginBottom: '6px' }}>
+            {hoveredLeaf.file.path}
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', fontSize: '11px', marginBottom: '6px' }}>
+            <span>Status:</span>
+            <span style={{ 
+              color: hoveredLeaf.file.status.startsWith('A') ? '#10b981' : hoveredLeaf.file.status.startsWith('D') ? '#ef4444' : '#f59e0b',
+              fontWeight: 'bold' 
+            }}>
+              {hoveredLeaf.file.status.startsWith('A') ? 'ADDED' : hoveredLeaf.file.status.startsWith('D') ? 'DELETED' : 'MODIFIED'}
+            </span>
+          </div>
+
+          <div style={{ fontSize: '10px', opacity: 0.7, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '4px' }}>
+            <div>Commit: "{hoveredLeaf.commitMessage}"</div>
+            <div style={{ marginTop: '2px' }}>by {hoveredLeaf.author}</div>
+          </div>
+        </div>
+      )}
 
       {/* Control timeline dock at the bottom */}
       <div 
@@ -727,8 +939,8 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
           background: 'rgba(11, 15, 25, 0.85)',
           border: '1px solid rgba(255, 255, 255, 0.08)',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255,255,255,0.05)',
-          borderRadius: '9999px', // Pill-shape as per design.md!
-          padding: '12px 32px',
+          borderRadius: '24px', // Spaced nicely for timeline nodes
+          padding: '16px 24px',
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
@@ -736,61 +948,11 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
           backdropFilter: 'blur(16px)'
         }}
       >
-        {/* Dock Header showing current time travel state */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#00f2fe', fontWeight: 'bold' }}>
-              Time-Travel Chronology Slider
-            </div>
-            <div style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>Commit {sliderVal + 1} of {sortedCommits.length}</span>
-              {sortedCommits[sliderVal] && (
-                <span style={{ fontSize: '11px', color: '#9ca3af', fontFamily: 'monospace' }}>
-                  ({sortedCommits[sliderVal].id.substring(0, 7)})
-                </span>
-              )}
-            </div>
-          </div>
-          
-          {sortedCommits[sliderVal] && (
-            <div style={{ textAlign: 'right', fontSize: '12px' }}>
-              <div style={{ color: '#ffffff', fontWeight: 'bold', maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {sortedCommits[sliderVal].message}
-              </div>
-              <div style={{ color: '#9ca3af', fontSize: '10px', marginTop: '2px' }}>
-                {new Date(sortedCommits[sliderVal].timestamp * 1000).toLocaleDateString()} by {sortedCommits[sliderVal].author}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Timeline Slider track */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <input
-            type="range"
-            min="0"
-            max={Math.max(0, sortedCommits.length - 1)}
-            value={sliderVal}
-            onChange={(e) => setSliderVal(parseInt(e.target.value, 10))}
-            style={{
-              flex: 1,
-              height: '6px',
-              borderRadius: '3px',
-              outline: 'none',
-              cursor: 'pointer',
-              background: '#1e293b',
-              accentColor: '#00f2fe',
-              WebkitAppearance: 'none'
-            }}
-          />
-        </div>
-
-        {/* Subtitle instructions */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#6b7280' }}>
-          <span>Root ({sortedCommits[0]?.id.substring(0, 7)})</span>
-          <span>Drag node to anchor • Scroll to zoom • Drag canvas to pan</span>
-          <span>Latest ({sortedCommits[sortedCommits.length - 1]?.id.substring(0, 7)})</span>
-        </div>
+        <CommitTimeline 
+          commits={sortedCommits} 
+          sliderVal={sliderVal} 
+          setSliderVal={setSliderVal} 
+        />
       </div>
     </div>
   );
