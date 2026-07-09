@@ -1,0 +1,200 @@
+[
+  {
+    "id": "cbe13115cc5355ae3aac7fbc94e00b1ab533eabb",
+    "parentIds": [
+      "82da6dc2168560e7514e2fadb357f842d719412e"
+    ],
+    "author": "John Doe",
+    "timestamp": 1783623900,
+    "message": "docs: update design details in README",
+    "filesChanged": 0,
+    "additions": 0,
+    "deletions": 0,
+    "modifications": 1,
+    "details": [
+      {
+        "status": "M",
+        "path": "README.md",
+        "content": "# React + Vite\n\nThis template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.\n\nCurrently, two official plugins are available:\n\n- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)\n- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)\n\n## React Compiler\n\nThe React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).\n\n## Expanding the Oxlint configuration\n\nIf you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.\nUpdate documentation\n"
+      }
+    ]
+  },
+  {
+    "id": "82da6dc2168560e7514e2fadb357f842d719412e",
+    "parentIds": [
+      "a4278361045e23bb0712f01e1c0e1d033bdb7118",
+      "00acb944a530d0825fc0299a73bddc687a7ca543"
+    ],
+    "author": "John Doe",
+    "timestamp": 1783623900,
+    "message": "Merge branch 'feature/physics'",
+    "filesChanged": 0,
+    "additions": 0,
+    "deletions": 0,
+    "modifications": 0,
+    "details": []
+  },
+  {
+    "id": "a4278361045e23bb0712f01e1c0e1d033bdb7118",
+    "parentIds": [
+      "621a52e486491d0727e057b8cdaa9321c1f90475"
+    ],
+    "author": "John Doe",
+    "timestamp": 1783623900,
+    "message": "fix(slider): resolve touch event mapping on mobile slider",
+    "filesChanged": 0,
+    "additions": 0,
+    "deletions": 0,
+    "modifications": 1,
+    "details": [
+      {
+        "status": "M",
+        "path": "bugfix.txt",
+        "content": "bugfix\nslider bug resolved\n"
+      }
+    ]
+  },
+  {
+    "id": "00acb944a530d0825fc0299a73bddc687a7ca543",
+    "parentIds": [
+      "5d8fef7c8c0e01a23aee467750937d6faca2da67"
+    ],
+    "author": "John Doe",
+    "timestamp": 1783623900,
+    "message": "feat(physics): add damping parameter to prevent orbit oscillations",
+    "filesChanged": 0,
+    "additions": 0,
+    "deletions": 0,
+    "modifications": 1,
+    "details": [
+      {
+        "status": "M",
+        "path": "physics.config",
+        "content": "physics config\nrepulsion: 200\nspring: 0.1\ndamping: 0.8\n"
+      }
+    ]
+  },
+  {
+    "id": "621a52e486491d0727e057b8cdaa9321c1f90475",
+    "parentIds": [
+      "57237f7376dcb1b7b7405e3fe522cc4f9cec5306"
+    ],
+    "author": "John Doe",
+    "timestamp": 1783623900,
+    "message": "fix: resolve memory leak in canvas draw loop",
+    "filesChanged": 1,
+    "additions": 1,
+    "deletions": 0,
+    "modifications": 0,
+    "details": [
+      {
+        "status": "A",
+        "path": "bugfix.txt",
+        "content": "bugfix\n"
+      }
+    ]
+  },
+  {
+    "id": "5d8fef7c8c0e01a23aee467750937d6faca2da67",
+    "parentIds": [
+      "00a68b543ed15bfc81d4a8af8daaf7ae12a3b90b"
+    ],
+    "author": "John Doe",
+    "timestamp": 1783623900,
+    "message": "feat(physics): add Hooke's Law spring force calculation",
+    "filesChanged": 0,
+    "additions": 0,
+    "deletions": 0,
+    "modifications": 1,
+    "details": [
+      {
+        "status": "M",
+        "path": "physics.config",
+        "content": "physics config\nrepulsion: 200\nspring: 0.1\n"
+      }
+    ]
+  },
+  {
+    "id": "57237f7376dcb1b7b7405e3fe522cc4f9cec5306",
+    "parentIds": [
+      "7f59e2a6fad353762336cc6f237db8b56cc56db4"
+    ],
+    "author": "John Doe",
+    "timestamp": 1783623900,
+    "message": "feat: add physics config file",
+    "filesChanged": 1,
+    "additions": 1,
+    "deletions": 0,
+    "modifications": 0,
+    "details": [
+      {
+        "status": "A",
+        "path": "physics.config",
+        "content": "physics config\n"
+      }
+    ]
+  },
+  {
+    "id": "00a68b543ed15bfc81d4a8af8daaf7ae12a3b90b",
+    "parentIds": [
+      "57237f7376dcb1b7b7405e3fe522cc4f9cec5306"
+    ],
+    "author": "John Doe",
+    "timestamp": 1783623900,
+    "message": "feat(physics): implement exponential repulsion calculation",
+    "filesChanged": 0,
+    "additions": 0,
+    "deletions": 0,
+    "modifications": 2,
+    "details": [
+      {
+        "status": "M",
+        "path": "README.md",
+        "content": "# React + Vite\n\nThis template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.\n\nCurrently, two official plugins are available:\n\n- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)\n- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)\n\n## React Compiler\n\nThe React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).\n\n## Expanding the Oxlint configuration\n\nIf you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.\n"
+      },
+      {
+        "status": "M",
+        "path": "physics.config",
+        "content": "physics config\nrepulsion: 200\n"
+      }
+    ]
+  },
+  {
+    "id": "7f59e2a6fad353762336cc6f237db8b56cc56db4",
+    "parentIds": [
+      "a4ab7e7e0ca303dbb9bcb7f3a7d3e0c31560220f"
+    ],
+    "author": "John Doe",
+    "timestamp": 1783623773,
+    "message": "Update README",
+    "filesChanged": 0,
+    "additions": 0,
+    "deletions": 0,
+    "modifications": 1,
+    "details": [
+      {
+        "status": "M",
+        "path": "README.md",
+        "content": "Hello\nLine 2\n"
+      }
+    ]
+  },
+  {
+    "id": "a4ab7e7e0ca303dbb9bcb7f3a7d3e0c31560220f",
+    "parentIds": [],
+    "author": "John Doe",
+    "timestamp": 1783623773,
+    "message": "Initial commit",
+    "filesChanged": 1,
+    "additions": 1,
+    "deletions": 0,
+    "modifications": 0,
+    "details": [
+      {
+        "status": "A",
+        "path": "README.md",
+        "content": "Hello\n"
+      }
+    ]
+  }
+]
