@@ -332,8 +332,15 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
       // ----------------------------------------------------
       // 3. CANVAS DRAW LOOP
       // ----------------------------------------------------
-      // Clear with cinematic dark background
-      ctx.fillStyle = '#05070c';
+      // Clear with deep misty forest gradient
+      const bgGrad = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, 30,
+        canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height)
+      );
+      bgGrad.addColorStop(0,   '#030f05');
+      bgGrad.addColorStop(0.6, '#010802');
+      bgGrad.addColorStop(1,   '#000300');
+      ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // Save canvas state and apply view transform (pan/zoom)
@@ -341,211 +348,219 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
       ctx.translate(s.pan.x, s.pan.y);
       ctx.scale(s.zoom, s.zoom);
 
-      // Draw subtle background grid
-      const gridSize = 80;
-      const leftBound = (-s.pan.x) / s.zoom;
-      const topBound = (-s.pan.y) / s.zoom;
-      const rightBound = (canvas.width - s.pan.x) / s.zoom;
-      const bottomBound = (canvas.height - s.pan.y) / s.zoom;
+      // ---- HELPER: draw a fractal sub-branch off a point ----
+      const drawFractalTwig = (sx, sy, angle, len, depth) => {
+        if (depth <= 0 || len < 2) return;
+        const ex = sx + Math.cos(angle) * len;
+        const ey = sy + Math.sin(angle) * len;
 
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
-      ctx.lineWidth = 1 / s.zoom;
-      
-      const startGridX = Math.floor(leftBound / gridSize) * gridSize;
-      const endGridX = Math.ceil(rightBound / gridSize) * gridSize;
-      const startGridY = Math.floor(topBound / gridSize) * gridSize;
-      const endGridY = Math.ceil(bottomBound / gridSize) * gridSize;
-
-      for (let x = startGridX; x <= endGridX; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, topBound);
-        ctx.lineTo(x, bottomBound);
+        // Glow bloom
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey);
+        ctx.strokeStyle = `rgba(57,255,20,${0.08 + depth * 0.04})`;
+        ctx.lineWidth = depth * 1.8;
+        ctx.shadowBlur = 6 + depth * 4;
+        ctx.shadowColor = '#39ff14';
         ctx.stroke();
-      }
-      for (let y = startGridY; y <= endGridY; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(leftBound, y);
-        ctx.lineTo(rightBound, y);
-        ctx.stroke();
-      }
 
-      // DRAW ORGANIC TRUNK (Under the root node)
+        // Core white-green line
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey);
+        ctx.strokeStyle = depth >= 2 ? '#c8ffc8' : '#80ff80';
+        ctx.lineWidth = Math.max(0.5, depth * 0.7);
+        ctx.shadowBlur = 0;
+        ctx.stroke();
+
+        // Leaf dot at tip
+        ctx.beginPath();
+        ctx.arc(ex, ey, Math.max(1, depth * 1.2), 0, 2 * Math.PI);
+        ctx.fillStyle = depth >= 2 ? 'rgba(200,255,180,0.9)' : 'rgba(120,255,120,0.7)';
+        ctx.shadowBlur = 6; ctx.shadowColor = '#39ff14';
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Recurse two child sub-branches
+        const spread = 0.4 + (3 - depth) * 0.15;
+        drawFractalTwig(ex, ey, angle - spread, len * 0.65, depth - 1);
+        drawFractalTwig(ex, ey, angle + spread, len * 0.65, depth - 1);
+      };
+
+      // ---- HELPER: draw a full glowing vine between two world points ----
+      const drawGlowingVine = (x1, y1, x2, y2, thickness, parentIdx) => {
+        const midY = (y1 + y2) / 2;
+        // Three-pass: bloom -> main green -> white core
+        const passes = [
+          { color: 'rgba(57,255,20,0.12)', w: thickness * 4.5, blur: 22, shadow: '#39ff14' },
+          { color: 'rgba(34,197,94,0.85)',  w: thickness,       blur: 10, shadow: '#22c55e' },
+          { color: '#e8ffe8',               w: Math.max(0.8, thickness * 0.22), blur: 4, shadow: '#ffffff' },
+        ];
+        passes.forEach(p => {
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.bezierCurveTo(x1, midY, x2, midY, x2, y2);
+          ctx.strokeStyle = p.color;
+          ctx.lineWidth = p.w;
+          ctx.shadowBlur = p.blur;
+          ctx.shadowColor = p.shadow;
+          ctx.stroke();
+        });
+        ctx.shadowBlur = 0;
+
+        // Sample points along the bezier and sprout fractal sub-branches
+        const steps = 9;
+        for (let k = 1; k < steps; k++) {
+          const t = k / steps;
+          const mt = 1 - t;
+          // Cubic bezier with control points (x1,midY) and (x2,midY)
+          const bx = mt*mt*mt*x1 + 3*mt*mt*t*x1 + 3*mt*t*t*x2 + t*t*t*x2;
+          const by = mt*mt*mt*y1 + 3*mt*mt*t*midY + 3*mt*t*t*midY + t*t*t*y2;
+
+          // Tangent direction perpendicular to the branch
+          const tanX = -3*mt*mt*x1 + 3*(mt*mt - 2*mt*t)*x1 + 3*(2*mt*t - t*t)*x2 + 3*t*t*x2;
+          const tanY = -3*mt*mt*y1 + 3*(mt*mt - 2*mt*t)*midY + 3*(2*mt*t - t*t)*midY + 3*t*t*y2;
+          const tanLen = Math.sqrt(tanX*tanX + tanY*tanY) || 1;
+          const perpAngle = Math.atan2(tanX / tanLen, -(tanY / tanLen)); // 90° CCW
+
+          // Alternate sides: even k → left, odd k → right, plus tiny off-axis variation
+          const side = k % 2 === 0 ? 1 : -1;
+          const twigAngle = perpAngle * side + (Math.sin(k * 2.7 + x1) * 0.18);
+          const twigLen = (14 + Math.sin(k * 1.9 + y1) * 8) * (1 - parentIdx * 0.06);
+
+          drawFractalTwig(bx, by, twigAngle, Math.max(6, twigLen), 2);
+        }
+      };
+
+      // ---- DRAW TRUNK (root node base) ----
       const rootCommit = sortedCommits[0];
       const rootNode = rootCommit ? s.nodes[rootCommit.id] : null;
       if (rootNode && rootNode.opacity > 0.05) {
-        ctx.save();
-        ctx.globalAlpha = rootNode.opacity * 0.22;
+        const tx = rootNode.x, ty = rootNode.y;
+        const trunkBot = ty + 160;
 
-        const trunkGrad = ctx.createLinearGradient(0, rootNode.y + 180, 0, rootNode.y);
-        trunkGrad.addColorStop(0, 'rgba(30, 41, 59, 0.0)');
-        trunkGrad.addColorStop(0.3, 'rgba(47, 54, 71, 0.3)');
-        trunkGrad.addColorStop(0.7, 'rgba(74, 85, 104, 0.5)');
-        trunkGrad.addColorStop(1, rootNode.color);
-
-        ctx.fillStyle = trunkGrad;
+        // Thick bloom
         ctx.beginPath();
-        ctx.moveTo(rootNode.x - 24, rootNode.y + 180);
-        ctx.bezierCurveTo(
-          rootNode.x - 12, rootNode.y + 100,
-          rootNode.x - 8, rootNode.y + 40,
-          rootNode.x, rootNode.y
-        );
-        ctx.bezierCurveTo(
-          rootNode.x + 8, rootNode.y + 40,
-          rootNode.x + 12, rootNode.y + 100,
-          rootNode.x + 24, rootNode.y + 180
-        );
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
+        ctx.moveTo(tx, trunkBot); ctx.lineTo(tx, ty);
+        ctx.strokeStyle = 'rgba(57,255,20,0.18)';
+        ctx.lineWidth = 36; ctx.shadowBlur = 30; ctx.shadowColor = '#39ff14';
+        ctx.stroke();
+
+        // Main green bark
+        ctx.beginPath();
+        ctx.moveTo(tx, trunkBot); ctx.lineTo(tx, ty);
+        ctx.strokeStyle = 'rgba(34,197,94,0.9)';
+        ctx.lineWidth = 14; ctx.shadowBlur = 14; ctx.shadowColor = '#22c55e';
+        ctx.stroke();
+
+        // White electric core
+        ctx.beginPath();
+        ctx.moveTo(tx, trunkBot); ctx.lineTo(tx, ty);
+        ctx.strokeStyle = '#f0fff0';
+        ctx.lineWidth = 3.5; ctx.shadowBlur = 6; ctx.shadowColor = '#ffffff';
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Root ground glow
+        const rGrad = ctx.createRadialGradient(tx, trunkBot, 0, tx, trunkBot, 50);
+        rGrad.addColorStop(0, 'rgba(57,255,20,0.22)');
+        rGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = rGrad;
+        ctx.fillRect(tx - 50, trunkBot - 10, 100, 60);
       }
 
-      // DRAW EDGES (Tapered organic tree limbs connecting parents and children)
+      // ---- DRAW EDGES as glowing fractal vines ----
       activeNodes.forEach(node => {
         if (node.opacity < 0.05) return;
-
+        ctx.globalAlpha = node.opacity;
         node.commit.parentIds.forEach(parentId => {
-          const parentNode = s.nodes[parentId];
-          if (parentNode && parentNode.opacity >= 0.05) {
-            const opacity = Math.min(node.opacity, parentNode.opacity) * 0.4;
-            
-            ctx.beginPath();
-            ctx.moveTo(parentNode.x, parentNode.y);
-
-            // Compute midpoint and Bezier control points for vertical organic flow
-            const midY = (parentNode.y + node.y) / 2;
-            ctx.bezierCurveTo(
-              parentNode.x, midY,
-              node.x, midY,
-              node.x, node.y
-            );
-
-            // Taper thickness: base of tree is thicker, twigs higher up are thinner
-            const parentIdx = sortedCommits.findIndex(c => c.id === parentNode.commit.id);
-            const branchWidth = Math.max(7.5 - parentIdx * 0.45, 2.5);
-            ctx.lineWidth = branchWidth;
-
-            // Create gradient line between parents and children
-            const grad = ctx.createLinearGradient(parentNode.x, parentNode.y, node.x, node.y);
-            grad.addColorStop(0, parentNode.color);
-            grad.addColorStop(1, node.color);
-
-            ctx.strokeStyle = grad;
-            ctx.globalAlpha = opacity;
-            ctx.stroke();
-            ctx.globalAlpha = 1.0;
+          const pn = s.nodes[parentId];
+          if (pn && pn.opacity >= 0.05) {
+            const parentIdx = sortedCommits.findIndex(c => c.id === pn.commit.id);
+            const baseThickness = Math.max(2.5, 8 - parentIdx * 0.5);
+            drawGlowingVine(pn.x, pn.y, node.x, node.y, baseThickness, parentIdx);
           }
         });
+        ctx.globalAlpha = 1.0;
       });
 
-      // DRAW NODES
+      // ---- DRAW NODE KNOTS ----
       activeNodes.forEach(node => {
         if (node.opacity < 0.05) return;
-
         ctx.save();
         ctx.globalAlpha = node.opacity;
 
-        const size = 15 * node.scale;
-        
-        // Neon Glow effect on canvas
-        ctx.shadowBlur = 18 * node.scale;
-        ctx.shadowColor = node.color;
+        const size = 9 * node.scale;
 
-        // Outer glow path
+        // Bloom ring
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, size * 2.2, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(57,255,20,0.12)';
+        ctx.shadowBlur = 16; ctx.shadowColor = '#39ff14';
+        ctx.fill();
+
+        // Green knot body
         ctx.beginPath();
         ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
-        ctx.fillStyle = node.color;
+        ctx.fillStyle = '#22c55e';
+        ctx.shadowBlur = 10; ctx.shadowColor = '#39ff14';
         ctx.fill();
 
-        // Inner core
-        ctx.shadowBlur = 0; // Turn off shadow to draw crisp inner details
+        // White hot core
         ctx.beginPath();
-        ctx.arc(node.x, node.y, size * 0.55, 0, 2 * Math.PI);
-        ctx.fillStyle = '#05070c';
+        ctx.arc(node.x, node.y, size * 0.4, 0, 2 * Math.PI);
+        ctx.fillStyle = '#f0fff0';
+        ctx.shadowBlur = 6; ctx.shadowColor = '#fff';
         ctx.fill();
+        ctx.shadowBlur = 0;
 
-        // Add a small center point
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, size * 0.25, 0, 2 * Math.PI);
-        ctx.fillStyle = node.color;
-        ctx.fill();
-
-        // If hovered, render selection ring
-        const isHovered = hoveredNode && hoveredNode.id === node.id;
-        if (isHovered) {
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2;
+        // Hovered ring
+        if (hoveredNode && hoveredNode.id === node.commit.id) {
           ctx.beginPath();
-          ctx.arc(node.x, node.y, size + 6, 0, 2 * Math.PI);
+          ctx.arc(node.x, node.y, size + 7, 0, 2 * Math.PI);
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.5;
           ctx.stroke();
         }
 
-        // DRAW ORGANIC LEAVES (depicting files changed in this commit)
+        // File change leaves sprouting from top
         const details = node.commit.details || [];
         const leafCount = Math.min(details.length, 6);
-        
         for (let j = 0; j < leafCount; j++) {
           const file = details[j];
-          // Fan out leaves upwards/outwards: -90 degrees center angle, spread by 0.45 rad
-          const angle = -Math.PI / 2 + (j - (leafCount - 1) / 2) * 0.45;
-          const leafScale = node.scale;
-          
-          const leafBaseX = node.x + Math.cos(angle) * (size + 3 * leafScale);
-          const leafBaseY = node.y + Math.sin(angle) * (size + 3 * leafScale);
-          const leafTipX = node.x + Math.cos(angle) * (size + 20 * leafScale);
-          const leafTipY = node.y + Math.sin(angle) * (size + 20 * leafScale);
+          const angle = -Math.PI / 2 + (j - (leafCount - 1) / 2) * 0.42;
+          const sc = node.scale;
+          const bx = node.x + Math.cos(angle) * (size + 2);
+          const by = node.y + Math.sin(angle) * (size + 2);
+          const tx2 = node.x + Math.cos(angle) * (size + 22 * sc);
+          const ty2 = node.y + Math.sin(angle) * (size + 22 * sc);
+          const la = angle - 0.3, ra = angle + 0.3;
+          const cd = size + 12 * sc;
+          const clx = node.x + Math.cos(la) * cd, cly = node.y + Math.sin(la) * cd;
+          const crx = node.x + Math.cos(ra) * cd, cry = node.y + Math.sin(ra) * cd;
 
-          // Control points for organic quadratic curves to form leaf blade
-          const leftAngle = angle - 0.28;
-          const rightAngle = angle + 0.28;
-          const ctrlDist = size + 11 * leafScale;
-          const ctrlLeftX = node.x + Math.cos(leftAngle) * ctrlDist;
-          const ctrlLeftY = node.y + Math.sin(leftAngle) * ctrlDist;
-          const ctrlRightX = node.x + Math.cos(rightAngle) * ctrlDist;
-          const ctrlRightY = node.y + Math.sin(rightAngle) * ctrlDist;
+          let lc = '#4ade80';
+          if (file.status.startsWith('M')) lc = '#fbbf24';
+          else if (file.status.startsWith('D')) lc = '#f87171';
 
-          // Green for additions, Amber for modifications, Red for deletions
-          let leafColor = '#10b981'; // green
-          if (file.status.startsWith('M')) {
-            leafColor = '#f59e0b'; // amber
-          } else if (file.status.startsWith('D')) {
-            leafColor = '#ef4444'; // red
-          }
+          // Stem
+          ctx.beginPath(); ctx.moveTo(node.x, node.y); ctx.lineTo(bx, by);
+          ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.2 * sc;
+          ctx.shadowBlur = 4; ctx.shadowColor = lc; ctx.stroke();
 
-          // Draw stem twig
-          ctx.beginPath();
-          ctx.moveTo(node.x, node.y);
-          ctx.lineTo(leafBaseX, leafBaseY);
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-          ctx.lineWidth = 1 * leafScale;
-          ctx.stroke();
+          // Leaf blade
+          ctx.beginPath(); ctx.moveTo(bx, by);
+          ctx.quadraticCurveTo(clx, cly, tx2, ty2);
+          ctx.quadraticCurveTo(crx, cry, bx, by);
+          ctx.fillStyle = lc; ctx.shadowBlur = 8; ctx.shadowColor = lc; ctx.fill();
 
-          // Draw leaf shape body
-          ctx.beginPath();
-          ctx.moveTo(leafBaseX, leafBaseY);
-          ctx.quadraticCurveTo(ctrlLeftX, ctrlLeftY, leafTipX, leafTipY);
-          ctx.quadraticCurveTo(ctrlRightX, ctrlRightY, leafBaseX, leafBaseY);
-          ctx.fillStyle = leafColor;
-          ctx.fill();
+          // Center vein
+          ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(tx2, ty2);
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = 0.9 * sc; ctx.shadowBlur = 3; ctx.stroke();
+          ctx.shadowBlur = 0;
 
-          // Draw central vein details
-          ctx.beginPath();
-          ctx.moveTo(leafBaseX, leafBaseY);
-          ctx.lineTo(leafTipX, leafTipY);
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-          ctx.lineWidth = 0.8 * leafScale;
-          ctx.stroke();
-
-          // Highlight hovered leaf
-          const isLeafHovered = hoveredLeaf && 
-                               hoveredLeaf.file.path === file.path && 
-                               hoveredLeaf.commitId === node.commit.id;
+          // Hovered leaf ring
+          const isLeafHovered = hoveredLeaf && hoveredLeaf.file.path === file.path && hoveredLeaf.commitId === node.commit.id;
           if (isLeafHovered) {
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.arc(leafTipX - Math.cos(angle)*6, leafTipY - Math.sin(angle)*6, 8 * leafScale, 0, 2 * Math.PI);
-            ctx.stroke();
+            ctx.arc(tx2 - Math.cos(angle)*5, ty2 - Math.sin(angle)*5, 8 * sc, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
           }
         }
 
