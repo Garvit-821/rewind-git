@@ -108,6 +108,7 @@ node cli.js [path-to-git-repository]
 | 🟢 **Low** | **3D Depth Projection** | Add a subtle isometric z-depth to branches so the tree appears to grow in 3D space, with closer branches appearing larger. |
 | 🟢 **Low** | **Export as SVG / Video** | Allow users to export the current tree state as an SVG file or record a time-lapse MP4 of the commit history growing. |
 | 🟢 **Low** | **GitHub Actions Integration** | Show CI/CD run status per commit as leaf health — failing builds make leaves wilt (curl up, turn grey), passing builds make them bright and fully open. |
+| 🟢 **Low** | **Auto Temp-Clone Cleanup Script** | A scheduled script (cron job or `server.js` process hook) that automatically deletes all `temp-clone-*` folders older than 24 hours on every server startup and midnight daily — preventing orphaned shallow clones from accumulating disk space. |
 
 ---
 
