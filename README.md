@@ -6,6 +6,8 @@
 
 **rewind.git** is an open-source, dark-mode developer tool that transforms any local or remote Git repository's commit history into an interactive, visually stunning canvas simulation. Branches grow as luminous botanical vines. Commits are glowing knots. File changes sprout as color-coded leaves. Traverse history, explore code trees, and audit diffs — all in real time.
 
+![rewind.git Landing Page](./landingpage.png)
+
 ---
 
 ## ✨ What's New
@@ -56,6 +58,32 @@ A local backend (`server.js`) that reads commit logs, authors, parent chains, an
 
 ### 👾 CLI Terminal Visualizer
 `cli.js` renders a colorized ASCII branch graph of your commit history directly inside your terminal.
+
+---
+
+## 🌳 Git Harvesting & Tree Representation
+
+```mermaid
+flowchart TD
+    A[Git Repository] -->|1. Harvest Logs & Diffs| B[server.js Backend]
+    B -->|2. Topologically Sorted JSON| C[React Frontend]
+    C -->|3. Spring-Force Physics| D[Canvas Nodes Placement]
+    C -->|4. Recursive Fractal Algorithms| E[Yggdrasil Canvas Drawing]
+```
+
+### 1. Data Harvesting (`server.js`)
+To represent history dynamically, `rewind.git` harvests data straight from the shell:
+* **Commit Graph & History extraction**: Spawns a child process executing `git log --pretty=format:"..." --name-status` to extract full commit lists, parent-child relationships, author tags, timestamps, and commit messages.
+* **File-Level Diffs**: Executes `git show --name-status <commit_sha>` on demand to harvest added (`A`), modified (`M`), and deleted (`D`) file operations.
+* **Transient Shallow Cloning**: For public GitHub HTTPS URLs, the server creates a fast, shallow clone (`git clone --bare --depth=...`) stored inside temporary project folders (`temp-clone-*`), building a lightweight, bare-cloned copy to speed up execution.
+
+### 2. Graph & Tree Representation
+* **Topological Spring-Force Layout**: Oldest commits are placed at the base, and youngest commits form the canopy. Faint attraction springs maintain the links between child and parent nodes, while node repulsion forces prevent branches and leaves from overlapping.
+* **Multi-Pass Glowing Vines**: Connections are drawn as vertical Cubic Bezier curves with controlled midpoints. The rendering engine paints branches using three nested canvas layers:
+  1. A wide **bloom layer** with alpha transparency for a soft neon glow.
+  2. A solid **green bark layer** defining the core vine structure.
+  3. A thin **white electric marrow line** running down the center.
+* **Recursive Twig Generation**: 9 alternate sub-branch nodes are recursively calculated off the Bezier curve, with leaf nodes sprouting organic color-coded leaf blades matching change types (green=added, amber=modified, red=deleted).
 
 ---
 
