@@ -1,4 +1,4 @@
-# rewind.git 🌿⚡
+# rewind.git
 
 ## A project by Marvel fan 
 
@@ -10,58 +10,58 @@
 
 ---
 
-## ✨ What's New
+## What's New
 
 ### v1.0.0-BETA — Yggdrasil Electric Tree (Latest)
 
-- **🌳 Fractal Botanical Renderer** — The timeline canvas has been completely rewritten. Branches are now rendered as multi-pass glowing vines: a wide neon bloom layer, a solid green bark body, and a bright white electric core line — exactly like the luminous Yggdrasil tree of Norse mythology.
-- **🌿 Recursive Fractal Sub-branches** — Along every Bezier limb, fractal sub-branches sprout at 9 sampled positions alternating left/right. Each sub-branch recursively generates depth-2 twig clusters with glowing leaf-tip dots, producing dense organic foliage.
-- **🪵 Electric Trunk Base** — The root commit is anchored by a thick glowing trunk (36px bloom + 14px green bark + 3.5px white electric core) rising from a radial ground glow.
-- **🍃 Color-Coded Change Leaves** — File changes per commit are rendered as pointed organic leaf blades sprouting upward from each node:
-  - 🟢 **Green** → Added files
-  - 🟡 **Amber** → Modified files
-  - 🔴 **Red** → Deleted files
-- **⚙️ Vertical Timeline Layout** — Commits now grow vertically upward from the base, with branches spreading symmetrically left (features) and right (hotfixes), forming a natural tree silhouette.
-- **🎥 Cinematic Landing Video Background** — Integrated a beautiful high-fidelity glowing green cosmos loop (`bg.mp4`) as the background of the landing page.
-- **⏮️ Restart & Play Controls** — Added a `⏮ Restart & Play` button to instantly jump back to the first commit and auto-replay the history.
-- **⚡ Playback Speed Adjuster** — A custom range slider allowing speed adjustments from `1x` (1500ms per commit) up to `20x` (75ms per commit) dynamically during replay.
-- **📤 Vector SVG Exporter** — Download a vector-based `.svg` file of the current Yggdrasil tree state, capturing the trunk, branches, recursive twigs, and change leaves in pixel-perfect scale.
-- **📹 Time-Lapse Video Recorder** — Capture and record a video (`.webm`) of your timeline growth dynamically using native HTML5 `captureStream` and `MediaRecorder` APIs. It automatically starts at commit 0 and stops recording at the final commit.
-- **🖱️ Leaf Hover HUD** — Hovering over any individual leaf reveals a floating glassmorphic card showing the exact file path, change type, commit SHA, and author.
-- **🌑 Deep Forest Background** — Canvas background replaced with a near-pure-black radial gradient with subtle deep-green tones, matching the dark mystical aesthetic of the reference.
-- **🔢 Physics Stabilization** — Reduced repulsion constants, added velocity cutoff thresholds, and increased damping to eliminate node vibration and jitter.
+- **Fractal Botanical Renderer** — The timeline canvas has been completely rewritten. Branches are now rendered as multi-pass glowing vines: a wide neon bloom layer, a solid green bark body, and a bright white electric core line — exactly like the luminous Yggdrasil tree of Norse mythology.
+- **Recursive Fractal Sub-branches** — Along every Bezier limb, fractal sub-branches sprout at 9 sampled positions alternating left/right. Each sub-branch recursively generates depth-2 twig clusters with glowing leaf-tip dots, producing dense organic foliage.
+- **Electric Trunk Base** — The root commit is anchored by a thick glowing trunk (36px bloom + 14px green bark + 3.5px white electric core) rising from a radial ground glow.
+- **Color-Coded Change Leaves** — File changes per commit are rendered as pointed organic leaf blades sprouting upward from each node:
+  - **Green** → Added files
+  - **Amber** → Modified files
+  - **Red** → Deleted files
+- **Vertical Timeline Layout** — Commits now grow vertically upward from the base, with branches spreading symmetrically left (features) and right (hotfixes), forming a natural tree silhouette.
+- **Cinematic Landing Video Background** — Integrated a beautiful high-fidelity glowing green cosmos loop (`bg.mp4`) as the background of the landing page.
+- **Restart & Play Controls** — Added a `Restart & Play` button to instantly jump back to the first commit and auto-replay the history.
+- **Playback Speed Adjuster** — A custom range slider allowing speed adjustments from `1x` (1500ms per commit) up to `20x` (75ms per commit) dynamically during replay.
+- **Vector SVG Exporter** — Download a vector-based `.svg` file of the current Yggdrasil tree state, capturing the trunk, branches, recursive twigs, and change leaves in pixel-perfect scale.
+- **Time-Lapse Video Recorder** — Capture and record a video (`.webm`) of your timeline growth dynamically using native HTML5 `captureStream` and `MediaRecorder` APIs. It automatically starts at commit 0 and stops recording at the final commit.
+- **Leaf Hover HUD** — Hovering over any individual leaf reveals a floating glassmorphic card showing the exact file path, change type, commit SHA, and author.
+- **Deep Forest Background** — Canvas background replaced with a near-pure-black radial gradient with subtle deep-green tones, matching the dark mystical aesthetic of the reference.
+- **Physics Stabilization** — Reduced repulsion constants, added velocity cutoff thresholds, and increased damping to eliminate node vibration and jitter.
 - **Stable Bezier Tree Limbs** — Branch connections are now drawn as smooth vertical S-curves (Bezier with midpoint control), with tapered thickness that reduces toward the canopy twigs.
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
-### ⚛️ Antigravity Node-Physics Simulation
+### Antigravity Node-Physics Simulation
 An interactive HTML5 Canvas that structures branches as a force-directed spring network grown vertically like a tree. Drag to anchor nodes, scroll to zoom, and hover commit knots or leaves to view glassmorphic metadata HUDs.
 
-### 🌳 Yggdrasil Commit Tree
+### Yggdrasil Commit Tree
 Commits form a living tree — the oldest commit is the root trunk; branches fork organically upward. Each branch is covered in fractal sub-branches and leaf clusters. File changes visible as glowing botanical leaves sprouting from each commit knot.
 
-### 💻 VS Code-Style Workspace
+### VS Code-Style Workspace
 Pixel-perfect VS Code layout alongside the canvas:
 - **File Explorer Sidebar**: Folder expansions, file type icons, and `A`/`M`/`D` status badges.
 - **Code Editor Pane**: Dark+ theme syntax highlighting, active tab selectors, and line numbers.
 - **Line-by-Line Diffs**: Color-coded additions (green) and deletions (red).
 
-### 📟 Integrated Git Terminal
+### Integrated Git Terminal
 A built-in bash-style terminal at the bottom of the editor. Outputs real-time Git statistics, author info, timestamps, and file change summaries as you scrub the timeline slider.
 
-### 🔌 Real-Time Harvester Engine
+### Real-Time Harvester Engine
 A local backend (`server.js`) that reads commit logs, authors, parent chains, and file structures. Supports:
 - Local absolute directory paths
 - Remote GitHub HTTPS URLs (shallow-cloned automatically)
 
-### 👾 CLI Terminal Visualizer
+### CLI Terminal Visualizer
 `cli.js` renders a colorized ASCII branch graph of your commit history directly inside your terminal.
 
 ---
 
-## 🌳 Git Harvesting & Tree Representation
+## Git Harvesting & Tree Representation
 
 ```mermaid
 flowchart TD
@@ -87,7 +87,7 @@ To represent history dynamically, `rewind.git` harvests data straight from the s
 
 ---
 
-## 🛠️ Architecture & Tech Stack
+## Architecture & Tech Stack
 
 | Layer | Technology |
 |---|---|
@@ -100,7 +100,7 @@ To represent history dynamically, `rewind.git` harvests data straight from the s
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
 ### Prerequisites
 - [Node.js](https://nodejs.org/) v16+
@@ -147,11 +147,11 @@ node cli.js [path-to-git-repository]
 
 ---
 
-## 📄 License
+## License
 This project is licensed under the **MIT License**.
 
 ---
 
 <div align="center">
-  <sub>Built with 🌿 by <a href="https://github.com/Garvit-821">Garvit Prakash</a> — rewind.git v1.0.0-BETA</sub>
+  <sub>Built by <a href="https://github.com/Garvit-821">Garvit Prakash</a> — rewind.git v1.0.0-BETA</sub>
 </div>
