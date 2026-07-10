@@ -10,6 +10,7 @@ const BRANCH_COLORS = {
 export default function CommitTimeline({ commits, sliderVal, setSliderVal }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hoveredIdx, setHoveredIdx] = useState(null);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1); // Default 1x speed
   const activeNodeRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
@@ -17,6 +18,8 @@ export default function CommitTimeline({ commits, sliderVal, setSliderVal }) {
   useEffect(() => {
     let timer = null;
     if (isPlaying) {
+      // 1x = 1500ms per step, 20x = 75ms per step
+      const intervalDuration = Math.max(50, Math.round(1500 / playbackSpeed));
       timer = setInterval(() => {
         setSliderVal((prev) => {
           if (prev >= commits.length - 1) {
@@ -25,12 +28,12 @@ export default function CommitTimeline({ commits, sliderVal, setSliderVal }) {
           }
           return prev + 1;
         });
-      }, 1500);
+      }, intervalDuration);
     }
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [isPlaying, commits.length, setSliderVal]);
+  }, [isPlaying, commits.length, setSliderVal, playbackSpeed]);
 
   // Auto-scroll timeline to keep active commit node centered
   useEffect(() => {
@@ -98,7 +101,17 @@ export default function CommitTimeline({ commits, sliderVal, setSliderVal }) {
 
       <div className="timeline-row-container">
         {/* Autoplay controller */}
-        <div className="timeline-controls">
+        <div className="timeline-controls" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button 
+            className="play-from-start-btn"
+            onClick={() => {
+              setSliderVal(0);
+              setIsPlaying(true);
+            }}
+            title="Restart and Play from Start"
+          >
+            ⏮ Restart & Play
+          </button>
           <button 
             className={`play-pause-btn ${isPlaying ? 'playing' : ''}`}
             onClick={() => setIsPlaying(!isPlaying)}
@@ -106,6 +119,19 @@ export default function CommitTimeline({ commits, sliderVal, setSliderVal }) {
           >
             {isPlaying ? '⏸ Pause' : '▶ Play'}
           </button>
+          
+          <div className="speed-adjuster-container">
+            <span className="speed-label">{playbackSpeed}x</span>
+            <input 
+              type="range"
+              min="1"
+              max="20"
+              value={playbackSpeed}
+              onChange={(e) => setPlaybackSpeed(parseInt(e.target.value))}
+              className="speed-range-slider"
+              title="Adjust playback speed"
+            />
+          </div>
         </div>
 
         {/* Scrollable Timeline Axis */}
