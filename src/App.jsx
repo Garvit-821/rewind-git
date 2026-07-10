@@ -310,24 +310,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Features Grid */}
-          <div className="features-grid">
-            <div className="feature-card">
-              <div className="feature-icon">⚛️</div>
-              <h4>Antigravity Physics</h4>
-              <p>Force-directed nodes push and pull branch lanes organically via spring simulations.</p>
-            </div>
-            <div className="feature-card">
-              <div className="feature-icon">🕒</div>
-              <h4>Time-Travel Timelines</h4>
-              <p>Scrub back and forth to watch branches sprout outward or collapse dynamically.</p>
-            </div>
-            <div className="feature-card">
-              <div className="feature-icon">📁</div>
-              <h4>IDE File Tree & Diffs</h4>
-              <p>Explore directory paths and audit color-coded line changes at any commit point.</p>
-            </div>
-          </div>
         </div>
       </div>
     );
