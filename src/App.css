@@ -1398,6 +1398,17 @@ input[type="range"]::-moz-range-thumb {
   color: #fff;
 }
 
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+
 /* Responsive Rules */
 @media (max-width: 1024px) {
   .ide-panel-wrapper {

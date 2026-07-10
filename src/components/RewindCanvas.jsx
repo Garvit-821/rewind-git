@@ -27,7 +27,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
   const sortedCommits = useMemo(() => {
     return [...commits].sort((a, b) => a.timestamp - b.timestamp);
   }, [commits]);
-  
+
   // UI Hover States
   const [hoveredNode, setHoveredNode] = useState(null);
   const [hoveredLeaf, setHoveredLeaf] = useState(null);
@@ -96,11 +96,11 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
   // Synchronize commits array with simulation nodes
   useEffect(() => {
     const s = stateRef.current;
-    
+
     // Initialize nodes if they do not exist
     sortedCommits.forEach((commit, index) => {
       const layout = commitLayouts[commit.id] || { lane: 0, branchType: 'main', color: '#fff' };
-      
+
       // Calculate branch lane offset: main = 0, features go above, hotfixes below
       let yOffset = 0;
       if (layout.lane > 0) {
@@ -201,7 +201,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
         // Vertical Yggdrasil Tree Layout: Grow upwards
         // Root commit (index 0) near base, growing upwards (subtracting index * 130)
         node.targetY = -index * 130 + 150;
-        
+
         // Symmetrical branch lanes: main (lane 0) in center, features left, hotfixes right
         let xOffset = 0;
         if (node.lane > 0) {
@@ -238,7 +238,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
             // F_repulsion = K_rep * exp(-dist / decayScale)
             const rawForce = K_REPULSION * Math.exp(-dist / DECAY_SCALE);
             const force = Math.min(rawForce, 15); // Clamp force to prevent explosions
-            
+
             const fx = (dx / dist) * force;
             const fy = (dy / dist) * force;
 
@@ -264,7 +264,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
             // F_spring = K_spring * (dist - restLength)
             const rawForce = K_SPRING * (dist - REST_LENGTH);
             const force = Math.max(-15, Math.min(15, rawForce)); // Clamp spring force
-            
+
             const fx = (dx / dist) * force;
             const fy = (dy / dist) * force;
 
@@ -282,7 +282,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
           // Inactive nodes collapse directly to parent's position via smooth geometric interpolation
           const parentId = node.commit.parentIds[0];
           const parentNode = parentId ? s.nodes[parentId] : null;
-          
+
           if (parentNode) {
             node.x += (parentNode.x - node.x) * 0.18;
             node.y += (parentNode.y - node.y) * 0.18;
@@ -337,9 +337,9 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
         canvas.width / 2, canvas.height / 2, 30,
         canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height)
       );
-      bgGrad.addColorStop(0,   '#030f05');
+      bgGrad.addColorStop(0, '#030f05');
       bgGrad.addColorStop(0.6, '#010802');
-      bgGrad.addColorStop(1,   '#000300');
+      bgGrad.addColorStop(1, '#000300');
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -389,8 +389,8 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
         // Three-pass: bloom -> main green -> white core
         const passes = [
           { color: 'rgba(57,255,20,0.12)', w: thickness * 4.5, blur: 22, shadow: '#39ff14' },
-          { color: 'rgba(34,197,94,0.85)',  w: thickness,       blur: 10, shadow: '#22c55e' },
-          { color: '#e8ffe8',               w: Math.max(0.8, thickness * 0.22), blur: 4, shadow: '#ffffff' },
+          { color: 'rgba(34,197,94,0.85)', w: thickness, blur: 10, shadow: '#22c55e' },
+          { color: '#e8ffe8', w: Math.max(0.8, thickness * 0.22), blur: 4, shadow: '#ffffff' },
         ];
         passes.forEach(p => {
           ctx.beginPath();
@@ -410,13 +410,13 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
           const t = k / steps;
           const mt = 1 - t;
           // Cubic bezier with control points (x1,midY) and (x2,midY)
-          const bx = mt*mt*mt*x1 + 3*mt*mt*t*x1 + 3*mt*t*t*x2 + t*t*t*x2;
-          const by = mt*mt*mt*y1 + 3*mt*mt*t*midY + 3*mt*t*t*midY + t*t*t*y2;
+          const bx = mt * mt * mt * x1 + 3 * mt * mt * t * x1 + 3 * mt * t * t * x2 + t * t * t * x2;
+          const by = mt * mt * mt * y1 + 3 * mt * mt * t * midY + 3 * mt * t * t * midY + t * t * t * y2;
 
           // Tangent direction perpendicular to the branch
-          const tanX = -3*mt*mt*x1 + 3*(mt*mt - 2*mt*t)*x1 + 3*(2*mt*t - t*t)*x2 + 3*t*t*x2;
-          const tanY = -3*mt*mt*y1 + 3*(mt*mt - 2*mt*t)*midY + 3*(2*mt*t - t*t)*midY + 3*t*t*y2;
-          const tanLen = Math.sqrt(tanX*tanX + tanY*tanY) || 1;
+          const tanX = -3 * mt * mt * x1 + 3 * (mt * mt - 2 * mt * t) * x1 + 3 * (2 * mt * t - t * t) * x2 + 3 * t * t * x2;
+          const tanY = -3 * mt * mt * y1 + 3 * (mt * mt - 2 * mt * t) * midY + 3 * (2 * mt * t - t * t) * midY + 3 * t * t * y2;
+          const tanLen = Math.sqrt(tanX * tanX + tanY * tanY) || 1;
           const perpAngle = Math.atan2(tanX / tanLen, -(tanY / tanLen)); // 90° CCW
 
           // Alternate sides: even k → left, odd k → right, plus tiny off-axis variation
@@ -559,7 +559,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
           const isLeafHovered = hoveredLeaf && hoveredLeaf.file.path === file.path && hoveredLeaf.commitId === node.commit.id;
           if (isLeafHovered) {
             ctx.beginPath();
-            ctx.arc(tx2 - Math.cos(angle)*5, ty2 - Math.sin(angle)*5, 8 * sc, 0, 2 * Math.PI);
+            ctx.arc(tx2 - Math.cos(angle) * 5, ty2 - Math.sin(angle) * 5, 8 * sc, 0, 2 * Math.PI);
             ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
           }
         }
@@ -729,7 +729,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
 
     // Zoom around mouse pointer
     const newZoom = Math.min(Math.max(s.zoom * zoomFactor, 0.25), 4.0);
-    
+
     s.pan.x = mouseX - (mouseX - s.pan.x) * (newZoom / s.zoom);
     s.pan.y = mouseY - (mouseY - s.pan.y) * (newZoom / s.zoom);
     s.zoom = newZoom;
@@ -744,9 +744,221 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
     };
   };
 
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+
+  useEffect(() => {
+    if (isRecording && sliderVal === sortedCommits.length - 1) {
+      const timer = setTimeout(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.stop();
+          setIsRecording(false);
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [sliderVal, isRecording, sortedCommits.length]);
+
+  const handleExportSVG = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const s = stateRef.current;
+    const nodeKeys = Object.keys(s.nodes);
+    const activeNodes = nodeKeys.map(k => s.nodes[k]).filter(n => n.opacity >= 0.05);
+
+    let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${canvas.width} ${canvas.height}" width="${canvas.width}" height="${canvas.height}">
+      <defs>
+        <radialGradient id="bg-grad" cx="50%" cy="50%" r="70%">
+          <stop offset="0%" stop-color="#030f05" />
+          <stop offset="60%" stop-color="#010802" />
+          <stop offset="100%" stop-color="#000300" />
+        </radialGradient>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#bg-grad)" />
+      <g transform="translate(${s.pan.x}, ${s.pan.y}) scale(${s.zoom})">
+    `;
+
+    // Add Trunk
+    const rootCommit = sortedCommits[0];
+    const rootNode = rootCommit ? s.nodes[rootCommit.id] : null;
+    if (rootNode) {
+      const tx = rootNode.x, ty = rootNode.y;
+      const trunkBot = ty + 160;
+      svgContent += `
+        <!-- Trunk -->
+        <path d="M ${tx - 36} ${trunkBot} L ${tx + 36} ${trunkBot} L ${tx} ${ty} Z" fill="rgba(34, 197, 94, 0.15)" />
+        <path d="M ${tx - 14} ${trunkBot} L ${tx + 14} ${trunkBot} L ${tx} ${ty} Z" fill="rgba(34, 197, 94, 0.7)" />
+        <line x1="${tx}" y1="${trunkBot}" x2="${tx}" y2="${ty}" stroke="#f0fdf4" stroke-width="3.5" />
+      `;
+    }
+
+    // Add Branches / Vines
+    activeNodes.forEach(node => {
+      node.commit.parentIds.forEach(parentId => {
+        const pn = s.nodes[parentId];
+        if (pn && pn.opacity >= 0.05) {
+          const parentIdx = sortedCommits.findIndex(c => c.id === pn.commit.id);
+          const thickness = Math.max(2.5, 8 - parentIdx * 0.5);
+          const x1 = pn.x, y1 = pn.y, x2 = node.x, y2 = node.y;
+          const midY = (y1 + y2) / 2;
+
+          svgContent += `
+            <!-- Vine -->
+            <path d="M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}" fill="none" stroke="rgba(57,255,20,0.12)" stroke-width="${thickness * 4.5}" stroke-linecap="round" />
+            <path d="M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}" fill="none" stroke="rgba(34,197,94,0.85)" stroke-width="${thickness}" stroke-linecap="round" />
+            <path d="M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}" fill="none" stroke="#e8ffe8" stroke-width="${Math.max(0.8, thickness * 0.22)}" stroke-linecap="round" />
+          `;
+
+          // Twigs along path
+          const steps = 9;
+          for (let k = 1; k < steps; k++) {
+            const t = k / steps;
+            const mt = 1 - t;
+            const bx = mt * mt * mt * x1 + 3 * mt * mt * t * x1 + 3 * mt * t * t * x2 + t * t * t * x2;
+            const by = mt * mt * mt * y1 + 3 * mt * mt * t * midY + 3 * mt * t * t * midY + t * t * t * y2;
+
+            const tanX = -3 * mt * mt * x1 + 3 * (mt * mt - 2 * mt * t) * x1 + 3 * (2 * mt * t - t * t) * x2 + 3 * t * t * x2;
+            const tanY = -3 * mt * mt * y1 + 3 * (mt * mt - 2 * mt * t) * midY + 3 * (2 * mt * t - t * t) * midY + 3 * t * t * y2;
+            const tanLen = Math.sqrt(tanX * tanX + tanY * tanY) || 1;
+            const perpAngle = Math.atan2(tanX / tanLen, -(tanY / tanLen));
+
+            const side = k % 2 === 0 ? 1 : -1;
+            const twigAngle = perpAngle * side + (Math.sin(k * 2.7 + x1) * 0.18);
+            const twigLen = (14 + Math.sin(k * 1.9 + y1) * 8) * (1 - parentIdx * 0.06);
+
+            const addTwig = (sx, sy, angle, len, depth) => {
+              if (depth <= 0 || len < 2) return;
+              const ex = sx + Math.cos(angle) * len;
+              const ey = sy + Math.sin(angle) * len;
+              svgContent += `
+                <line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="rgba(57,255,20,${0.08 + depth * 0.04})" stroke-width="${depth * 1.8}" stroke-linecap="round" />
+                <line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="${depth >= 2 ? '#c8ffc8' : '#80ff80'}" stroke-width="${Math.max(0.5, depth * 0.7)}" stroke-linecap="round" />
+                <circle cx="${ex}" cy="${ey}" r="${Math.max(1, depth * 1.2)}" fill="${depth >= 2 ? 'rgba(200,255,180,0.9)' : 'rgba(120,255,120,0.7)'}" />
+              `;
+              const spread = 0.45;
+              addTwig(ex, ey, angle - spread, len * 0.65, depth - 1);
+              addTwig(ex, ey, angle + spread, len * 0.65, depth - 1);
+            };
+            addTwig(bx, by, twigAngle, Math.max(6, twigLen), 2);
+          }
+        }
+      });
+    });
+
+    // Add Nodes
+    activeNodes.forEach(node => {
+      const size = 9 * node.scale;
+      svgContent += `
+        <!-- Node -->
+        <circle cx="${node.x}" cy="${node.y}" r="${size * 2.2}" fill="rgba(57,255,20,0.12)" />
+        <circle cx="${node.x}" cy="${node.y}" r="${size}" fill="#22c55e" />
+        <circle cx="${node.x}" cy="${node.y}" r="${size * 0.4}" fill="#f0fff0" />
+      `;
+
+      // Leaves
+      const details = node.commit.details || [];
+      const leafCount = Math.min(details.length, 6);
+      for (let j = 0; j < leafCount; j++) {
+        const file = details[j];
+        const angle = -Math.PI / 2 + (j - (leafCount - 1) / 2) * 0.42;
+        const sc = node.scale;
+        const bx = node.x + Math.cos(angle) * (size + 2);
+        const by = node.y + Math.sin(angle) * (size + 2);
+        const tx2 = node.x + Math.cos(angle) * (size + 22 * sc);
+        const ty2 = node.y + Math.sin(angle) * (size + 22 * sc);
+        const la = angle - 0.3, ra = angle + 0.3;
+        const cd = size + 12 * sc;
+        const clx = node.x + Math.cos(la) * cd, cly = node.y + Math.sin(la) * cd;
+        const crx = node.x + Math.cos(ra) * cd, cry = node.y + Math.sin(ra) * cd;
+
+        let lc = '#4ade80';
+        if (file.status.startsWith('M')) lc = '#fbbf24';
+        else if (file.status.startsWith('D')) lc = '#f87171';
+
+        svgContent += `
+          <!-- Leaf -->
+          <line x1="${node.x}" y1="${node.y}" x2="${bx}" y2="${by}" stroke="rgba(255,255,255,0.5)" stroke-width="${1.2 * sc}" stroke-linecap="round" />
+          <path d="M ${bx} ${by} Q ${clx} ${cly}, ${tx2} ${ty2} Q ${crx} ${cry}, ${bx} ${by}" fill="${lc}" />
+          <line x1="${bx}" y1="${by}" x2="${tx2}" y2="${ty2}" stroke="#ffffff" stroke-width="${0.9 * sc}" stroke-linecap="round" />
+        `;
+      }
+    });
+
+    svgContent += `
+      </g>
+    </svg>`;
+
+    const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `yggdrasil-tree-${Date.now()}.svg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleToggleRecord = () => {
+    if (isRecording) {
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop();
+      }
+      setIsRecording(false);
+    } else {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      recordedChunksRef.current = [];
+      setSliderVal(0);
+
+      const stream = canvas.captureStream(30);
+      let options = { mimeType: 'video/webm;codecs=vp9' };
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options = { mimeType: 'video/webm;codecs=vp8' };
+      }
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options = { mimeType: 'video/webm' };
+      }
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options = {};
+      }
+
+      try {
+        const mediaRecorder = new MediaRecorder(stream, options);
+        mediaRecorderRef.current = mediaRecorder;
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) {
+            recordedChunksRef.current.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `rewind-timelapse-${Date.now()}.webm`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        };
+
+        mediaRecorder.start();
+        setIsRecording(true);
+      } catch (err) {
+        console.error('Failed to start MediaRecorder:', err);
+        alert('Browser does not support canvas video recording.');
+      }
+    }
+  };
+
   return (
-    <div 
-      className="rewind-visualization-container" 
+    <div
+      className="rewind-visualization-container"
       ref={containerRef}
       style={{
         position: 'relative',
@@ -773,30 +985,99 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
         }}
       />
 
-      {/* Reset view overlay control */}
-      <button 
-        className="canvas-reset-btn"
-        onClick={handleResetView}
-        style={{
-          position: 'absolute',
-          top: '20px',
-          right: '20px',
-          background: 'rgba(30, 41, 59, 0.75)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          borderRadius: '9999px',
-          color: '#ffffff',
-          padding: '8px 16px',
-          fontFamily: 'inherit',
-          fontWeight: '600',
-          fontSize: '12px',
-          cursor: 'pointer',
-          backdropFilter: 'blur(8px)',
-          transition: 'all 0.2s',
-          zIndex: 10
-        }}
-      >
-        Reset Camera
-      </button>
+      {/* View overlays and export controls */}
+      <div style={{
+        position: 'absolute',
+        top: '20px',
+        right: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        zIndex: 10
+      }}>
+        <button
+          className="canvas-reset-btn"
+          onClick={handleResetView}
+          style={{
+            background: 'rgba(30, 41, 59, 0.75)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            borderRadius: '9999px',
+            color: '#ffffff',
+            padding: '8px 16px',
+            fontFamily: 'inherit',
+            fontWeight: '600',
+            fontSize: '12px',
+            cursor: 'pointer',
+            backdropFilter: 'blur(8px)',
+            transition: 'all 0.2s',
+            width: '150px',
+            textAlign: 'center'
+          }}
+        >
+          Reset Camera
+        </button>
+
+        <button
+          className="canvas-export-btn"
+          onClick={handleExportSVG}
+          style={{
+            background: 'rgba(34, 197, 94, 0.15)',
+            border: '1px solid rgba(34, 197, 94, 0.4)',
+            borderRadius: '9999px',
+            color: '#4ade80',
+            padding: '8px 16px',
+            fontFamily: 'inherit',
+            fontWeight: '600',
+            fontSize: '12px',
+            cursor: 'pointer',
+            backdropFilter: 'blur(8px)',
+            transition: 'all 0.2s',
+            width: '150px',
+            textAlign: 'center'
+          }}
+        >
+          📤 Export SVG
+        </button>
+
+        <button
+          className={`canvas-record-btn ${isRecording ? 'recording' : ''}`}
+          onClick={handleToggleRecord}
+          style={{
+            background: isRecording ? 'rgba(239, 68, 68, 0.25)' : 'rgba(168, 85, 247, 0.15)',
+            border: isRecording ? '1px solid #ef4444' : '1px solid rgba(168, 85, 247, 0.4)',
+            borderRadius: '9999px',
+            color: isRecording ? '#f87171' : '#c084fc',
+            padding: '8px 16px',
+            fontFamily: 'inherit',
+            fontWeight: '600',
+            fontSize: '12px',
+            cursor: 'pointer',
+            backdropFilter: 'blur(8px)',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            width: '150px'
+          }}
+        >
+          {isRecording ? (
+            <>
+              <span style={{
+                display: 'inline-block',
+                width: '8px',
+                height: '8px',
+                background: '#ef4444',
+                borderRadius: '50%',
+                animation: 'pulse 1s infinite'
+              }}></span>
+              Stop Rec
+            </>
+          ) : (
+            '📹 Record Lapse'
+          )}
+        </button>
+      </div>
 
       {/* Floating neon HUD details overlay */}
       {hoveredNode && (
@@ -926,9 +1207,9 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
 
           <div style={{ display: 'flex', gap: '8px', fontSize: '11px', marginBottom: '6px' }}>
             <span>Status:</span>
-            <span style={{ 
+            <span style={{
               color: hoveredLeaf.file.status.startsWith('A') ? '#10b981' : hoveredLeaf.file.status.startsWith('D') ? '#ef4444' : '#f59e0b',
-              fontWeight: 'bold' 
+              fontWeight: 'bold'
             }}>
               {hoveredLeaf.file.status.startsWith('A') ? 'ADDED' : hoveredLeaf.file.status.startsWith('D') ? 'DELETED' : 'MODIFIED'}
             </span>
@@ -942,7 +1223,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
       )}
 
       {/* Control timeline dock at the bottom */}
-      <div 
+      <div
         className="time-travel-dock"
         style={{
           position: 'absolute',
@@ -963,12 +1244,15 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
           backdropFilter: 'blur(16px)'
         }}
       >
-        <CommitTimeline 
-          commits={sortedCommits} 
-          sliderVal={sliderVal} 
-          setSliderVal={setSliderVal} 
+        <CommitTimeline
+          commits={sortedCommits}
+          sliderVal={sliderVal}
+          setSliderVal={setSliderVal}
         />
       </div>
     </div>
   );
 }
+
+
+// /* commit-fix */
