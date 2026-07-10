@@ -248,6 +248,15 @@ export default function App() {
   if (!commits) {
     return (
       <div className="landing-page-container">
+        <video 
+          className="landing-video-bg" 
+          autoPlay 
+          loop 
+          muted 
+          playsInline
+        >
+          <source src="/bg.mp4" type="video/mp4" />
+        </video>
         <div className="landing-background-overlay"></div>
         <div className="landing-card-glow"></div>
 
