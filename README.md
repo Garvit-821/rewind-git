@@ -20,6 +20,11 @@
   - 🟡 **Amber** → Modified files
   - 🔴 **Red** → Deleted files
 - **⚙️ Vertical Timeline Layout** — Commits now grow vertically upward from the base, with branches spreading symmetrically left (features) and right (hotfixes), forming a natural tree silhouette.
+- **🎥 Cinematic Landing Video Background** — Integrated a beautiful high-fidelity glowing green cosmos loop (`bg.mp4`) as the background of the landing page.
+- **⏮️ Restart & Play Controls** — Added a `⏮ Restart & Play` button to instantly jump back to the first commit and auto-replay the history.
+- **⚡ Playback Speed Adjuster** — A custom range slider allowing speed adjustments from `1x` (1500ms per commit) up to `20x` (75ms per commit) dynamically during replay.
+- **📤 Vector SVG Exporter** — Download a vector-based `.svg` file of the current Yggdrasil tree state, capturing the trunk, branches, recursive twigs, and change leaves in pixel-perfect scale.
+- **📹 Time-Lapse Video Recorder** — Capture and record a video (`.webm`) of your timeline growth dynamically using native HTML5 `captureStream` and `MediaRecorder` APIs. It automatically starts at commit 0 and stops recording at the final commit.
 - **🖱️ Leaf Hover HUD** — Hovering over any individual leaf reveals a floating glassmorphic card showing the exact file path, change type, commit SHA, and author.
 - **🌑 Deep Forest Background** — Canvas background replaced with a near-pure-black radial gradient with subtle deep-green tones, matching the dark mystical aesthetic of the reference.
 - **🔢 Physics Stabilization** — Reduced repulsion constants, added velocity cutoff thresholds, and increased damping to eliminate node vibration and jitter.
@@ -108,7 +113,7 @@ node cli.js [path-to-git-repository]
 | 🟡 **Medium** | **Commit Density Heatmap** | Color the trunk and branches by commit frequency — areas of rapid activity glow brighter yellow-white, while inactive periods dim to dark green. |
 | 🟡 **Medium** | **Multi-Repo Forest Mode** | Visualize multiple repositories simultaneously as separate trees in the same forest canvas, connected at the ground by roots. |
 | 🟢 **Low** | **3D Depth Projection** | Add a subtle isometric z-depth to branches so the tree appears to grow in 3D space, with closer branches appearing larger. |
-| 🟢 **Low** | **Export as SVG / Video** | Allow users to export the current tree state as an SVG file or record a time-lapse MP4 of the commit history growing. |
+| ✅ **Completed** | **Export as SVG / Video** | Exporters for SVG vector files and WebM time-lapse video recordings are fully functional in the workspace. |
 | 🟢 **Low** | **GitHub Actions Integration** | Show CI/CD run status per commit as leaf health — failing builds make leaves wilt (curl up, turn grey), passing builds make them bright and fully open. |
 | 🟢 **Low** | **Auto Temp-Clone Cleanup Script** | A scheduled script (cron job or `server.js` process hook) that automatically deletes all `temp-clone-*` folders older than 24 hours on every server startup and midnight daily — preventing orphaned shallow clones from accumulating disk space. |
 
