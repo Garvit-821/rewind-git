@@ -318,106 +318,74 @@ export default function App() {
   // ----------------------------------------------------
   // VISUALIZER WORKSPACE RENDER
   // ----------------------------------------------------
+  // Colorized terminal output renderer
+  const renderTerminalContent = () => {
+    const activeCommit = sortedCommits[sliderVal];
+    if (!activeCommit) {
+      return (
+        <div>
+          <span style={{ color: '#4ade80', fontWeight: 'bold' }}>guest@rewind-git:~/workspace$ </span>
+          <span style={{ color: '#ffffff' }}>█</span>
+        </div>
+      );
+    }
+    
+    const dateStr = new Date(activeCommit.timestamp * 1000).toLocaleString();
+    const additions = activeCommit.additions || 0;
+    const deletions = activeCommit.deletions || 0;
+
+    return (
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', lineHeight: '1.6', color: '#d4d4d4' }}>
+        <div>
+          <span style={{ color: '#4ade80', fontWeight: 'bold' }}>guest@rewind-git:~/workspace$ </span>
+          <span style={{ color: '#ffffff' }}>git show --stat --oneline {activeCommit.id.substring(0, 7)}</span>
+        </div>
+        <div>
+          <span style={{ color: '#00f2fe', fontWeight: 'bold' }}>{activeCommit.id.substring(0, 7)}</span>
+          <span style={{ color: '#e2e8f0' }}> - {activeCommit.message}</span>
+        </div>
+        <div>
+          <span style={{ color: '#9ca3af' }}>Author: </span>
+          <span style={{ color: '#f3f4f6' }}>{activeCommit.author}</span>
+        </div>
+        <div>
+          <span style={{ color: '#9ca3af' }}>Date:   </span>
+          <span style={{ color: '#f3f4f6' }}>{dateStr}</span>
+        </div>
+        <div style={{ margin: '8px 0 4px 0', color: '#9ca3af', textDecoration: 'underline' }}>File changes:</div>
+        {activeCommit.details.map((d, idx) => {
+          const isAdd = d.status.startsWith('A');
+          const isDel = d.status.startsWith('D');
+          const signColor = isAdd ? '#10b981' : isDel ? '#ef4444' : '#fbbf24';
+          const sign = isAdd ? 'A' : isDel ? 'D' : 'M';
+          return (
+            <div key={idx} style={{ paddingLeft: '8px' }}>
+              <span style={{ color: signColor, fontWeight: 'bold' }}>[{sign}]</span>
+              <span style={{ color: '#cbd5e1' }}>  {d.path}</span>
+            </div>
+          );
+        })}
+        <div style={{ marginTop: '8px', color: '#9ca3af' }}>
+          <span>Summary: {activeCommit.details.length} files changed, </span>
+          <span style={{ color: '#10b981', fontWeight: 'bold' }}>+{additions} insertions</span>
+          <span>, </span>
+          <span style={{ color: '#ef4444', fontWeight: 'bold' }}>-{deletions} deletions</span>
+        </div>
+        <div style={{ marginTop: '8px' }}>
+          <span style={{ color: '#4ade80', fontWeight: 'bold' }}>guest@rewind-git:~/workspace$ </span>
+          <span style={{ color: '#ffffff' }}>█</span>
+        </div>
+      </div>
+    );
+  };
+
+  // ----------------------------------------------------
+  // VISUALIZER WORKSPACE RENDER
+  // ----------------------------------------------------
   return (
     <div className="rewind-app dark-theme">
-      {/* Sleek top dashboard header */}
-      <header className="app-header">
-        <div className="logo-group">
-          <div className="logo-glow"></div>
-          <span className="logo-text" onClick={handleResetRepo} style={{ cursor: 'pointer' }}>
-            rewind<span className="logo-dot">.git</span>
-          </span>
-          <span className="badge">v1.0.0-beta</span>
-        </div>
-        
-        <div className="header-stats">
-          <div className="stat-pill">
-            <span className="stat-label">Commits</span>
-            <span className="stat-val text-cyan">{totalCommits}</span>
-          </div>
-          <div className="stat-pill">
-            <span className="stat-label">Contributors</span>
-            <span className="stat-val text-purple">{authors.length}</span>
-          </div>
-          <div className="stat-pill">
-            <span className="stat-label">Files Tracked</span>
-            <span className="stat-val text-amber">{totalFilesChanged}</span>
-          </div>
-          <button 
-            className={`ide-toggle-btn ${showIde ? 'active' : ''}`}
-            onClick={() => setShowIde(!showIde)}
-          >
-            {showIde ? 'Hide Workspace' : 'Open Workspace'}
-          </button>
-          <button 
-            className="change-repo-btn"
-            onClick={handleResetRepo}
-          >
-            Change Repository
-          </button>
-        </div>
-      </header>
-
       {/* Main Workspace layout */}
-      <main className="app-main">
-        {/* Sidebar panels */}
-        <aside className="control-sidebar">
-          <div className="sidebar-card">
-            <h3>Overview</h3>
-            <p className="description">
-              A highly visual, interactive time-traveling canvas mapping git log histories to an antigravity node-physics simulation.
-            </p>
-          </div>
-
-          {/* Branch color codes legend */}
-          <div className="sidebar-card">
-            <h3>Branches</h3>
-            <ul className="branch-legend">
-              <li>
-                <span className="legend-indicator dot-cyan"></span>
-                <span className="legend-label">Main Trunk</span>
-                <span className="legend-code">Cyan</span>
-              </li>
-              <li>
-                <span className="legend-indicator dot-purple"></span>
-                <span className="legend-label">Feature Paths</span>
-                <span className="legend-code">Purple</span>
-              </li>
-              <li>
-                <span className="legend-indicator dot-amber"></span>
-                <span className="legend-label">Hotfixes</span>
-                <span className="legend-code">Amber</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Interactivity Instructions */}
-          <div className="sidebar-card">
-            <h3>Controls</h3>
-            <ul className="controls-list">
-              <li><strong>Scroll Wheel</strong> Zoom in / out</li>
-              <li><strong>Drag Canvas</strong> Pan across the history</li>
-              <li><strong>Drag Node</strong> Freeze and position node</li>
-              <li><strong>Hover Node</strong> Inspect files & author HUD</li>
-              <li><strong>Range Slider</strong> Move backward/forward in time</li>
-            </ul>
-          </div>
-
-          {/* Raw JSON Data Drawer Toggle */}
-          <div className="sidebar-card collapsible">
-            <div className="card-header-toggle" onClick={() => setShowJson(!showJson)}>
-              <h3>Raw Git Payload</h3>
-              <span className="toggle-icon">{showJson ? '▼' : '►'}</span>
-            </div>
-            {showJson && (
-              <div className="payload-json-wrapper">
-                <pre>{JSON.stringify(sortedCommits.slice(0, 3), null, 2)}</pre>
-                {sortedCommits.length > 3 && <div className="json-truncation">... truncated {sortedCommits.length - 3} commits</div>}
-              </div>
-            )}
-          </div>
-        </aside>
-
+      <main className="app-main" style={{ height: '100vh', width: '100vw' }}>
         {/* Dynamic Split Workspace Viewport */}
         <div className="workspace-viewport">
           <section className="visualization-viewport">
@@ -425,13 +393,127 @@ export default function App() {
               commits={sortedCommits} 
               sliderVal={sliderVal} 
               setSliderVal={setSliderVal} 
+              repoInput={repoInput}
             />
+
+            {/* Floating Toggle Workspace Button */}
+            <button
+              onClick={() => setShowIde(!showIde)}
+              style={{
+                position: 'absolute',
+                right: 0,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'rgba(30, 41, 59, 0.85)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRight: 'none',
+                borderRadius: '8px 0 0 8px',
+                color: '#ffffff',
+                padding: '16px 8px',
+                cursor: 'pointer',
+                zIndex: 20,
+                backdropFilter: 'blur(12px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s',
+                boxShadow: '-4px 0 16px rgba(0, 0, 0, 0.3)'
+              }}
+              title={showIde ? 'Hide IDE Workspace' : 'Open IDE Workspace'}
+            >
+              {showIde ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              )}
+            </button>
           </section>
 
           {/* Code IDE Workspace overlay panel */}
           {showIde && (
             <section className="ide-panel-wrapper">
               <div className="vscode-layout">
+                {/* VS Code Activity Bar */}
+                <div className="vscode-activity-bar">
+                  {/* Top Icons */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', alignItems: 'center' }}>
+                    {/* Explorer - Active (with indicator line on the left) */}
+                    <div 
+                      style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center', cursor: 'pointer' }}
+                      onClick={() => setShowIde(false)}
+                      title="Collapse Explorer"
+                    >
+                      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '2px', backgroundColor: '#00f2fe' }} />
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 22V4a2 2 0 0 1 2-2h8.5L20 7.5V22a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+                        <polyline points="14 2 14 8 20 8" />
+                      </svg>
+                    </div>
+
+                    {/* Search */}
+                    <div style={{ width: '100%', display: 'flex', justifyContent: 'center', cursor: 'pointer', opacity: 0.45 }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                    </div>
+
+                    {/* Source Control */}
+                    <div style={{ width: '100%', display: 'flex', justifyContent: 'center', cursor: 'pointer', opacity: 0.45 }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="18" cy="18" r="3" />
+                        <circle cx="6" cy="6" r="3" />
+                        <path d="M18 15V9a4 4 0 0 0-4-4H9" />
+                        <line x1="6" y1="9" x2="6" y2="21" />
+                      </svg>
+                    </div>
+
+                    {/* Run / Debug */}
+                    <div style={{ width: '100%', display: 'flex', justifyContent: 'center', cursor: 'pointer', opacity: 0.45 }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                      </svg>
+                    </div>
+
+                    {/* Extensions */}
+                    <div style={{ width: '100%', display: 'flex', justifyContent: 'center', cursor: 'pointer', opacity: 0.45 }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="7" height="7" />
+                        <rect x="14" y="3" width="7" height="7" />
+                        <rect x="14" y="14" width="7" height="7" />
+                        <rect x="3" y="14" width="7" height="7" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* Bottom Icons */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', alignItems: 'center' }}>
+                    {/* User profile */}
+                    <div style={{ width: '100%', display: 'flex', justifyContent: 'center', cursor: 'pointer', opacity: 0.45 }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </div>
+
+                    {/* Settings / Gear */}
+                    <div 
+                      style={{ width: '100%', display: 'flex', justifyContent: 'center', cursor: 'pointer', opacity: 0.45 }}
+                      onClick={handleResetRepo}
+                      title="Choose another repository"
+                    >
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
                 {/* VS Code Sidebar File Explorer */}
                 <div className="vscode-sidebar">
                   <div className="section-header">
@@ -464,7 +546,7 @@ export default function App() {
                       <span className="terminal-prompt-info">bash (git show)</span>
                     </div>
                     <div className="terminal-body-content">
-                      <pre className="terminal-pre">{terminalContent}</pre>
+                      {renderTerminalContent()}
                     </div>
                   </div>
                 </div>

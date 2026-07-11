@@ -377,8 +377,8 @@ html {
    VS CODE IDE PANEL LAYOUT
    ---------------------------------------------------- */
 .ide-panel-wrapper {
-  width: 750px;
-  /* Roomy split panel */
+  width: 38%;
+  /* Roomy split panel percentage matching the design */
   height: 100%;
   background-color: #1e1e1e;
   border-left: 1px solid #3c3c3c;
@@ -394,6 +394,20 @@ html {
   width: 100%;
   height: 100%;
   background-color: #1e1e1e;
+}
+
+/* VS Code Activity Bar */
+.vscode-activity-bar {
+  width: 48px;
+  height: 100%;
+  background-color: #333333;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-right: 1px solid #252526;
+  flex-shrink: 0;
 }
 
 /* Left Sidebar Explorer */

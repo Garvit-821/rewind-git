@@ -136,7 +136,7 @@ node cli.js [path-to-git-repository]
 | Priority | Feature | Description |
 |---|---|---|
 | 🔥 **High** | **Contributor Branch Highlighting** | When a commit belongs to a specific contributor, that entire branch of the Yggdrasil tree glows in a distinct **electric blue** color. Hovering a contributor's name in a HUD highlights all their branches simultaneously across the whole tree. |
-| 🔥 **High** | **Hyper-Realistic Tree Rendering** | Increase fractal twig recursion depth to 4–5 levels, add wind-sway micro-animation along branch tips, and use parametric bark textures to make the tree feel like a true living organism rather than a glowing graph. |
+| 🔥 **High** **[ONGOING]**| **Hyper-Realistic Tree Rendering** | Increase fractal twig recursion depth to 4–5 levels, add wind-sway micro-animation along branch tips, and use parametric bark textures to make the tree feel like a true living organism rather than a glowing graph. |
 | 🟡 **Medium** | **Branch Merge Visualization** | Render merge commits as two branches physically weaving together — vines coiling around each other before joining the trunk. |
 | 🟡 **Medium** | **Commit Density Heatmap** | Color the trunk and branches by commit frequency — areas of rapid activity glow brighter yellow-white, while inactive periods dim to dark green. |
 | 🟡 **Medium** | **Multi-Repo Forest Mode** | Visualize multiple repositories simultaneously as separate trees in the same forest canvas, connected at the ground by roots. |

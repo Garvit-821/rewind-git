@@ -71,21 +71,26 @@ function highlightLine(text, filePath) {
     
   // Highlight syntax for code files
   if (filePath.endsWith('.js') || filePath.endsWith('.jsx') || filePath.endsWith('.json') || filePath.endsWith('.css')) {
-    // Comments
-    html = html.replace(/(\/\/.*)/g, '<span class="syntax-comment">$1</span>');
+    // Match comments, strings, and language keywords in a single pass to avoid collision
+    const tokenRegex = /(\/\/.*)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)|(\b(?:const|let|var|function|return|import|export|default|class|extends|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|new|this|typeof|instanceof|async|await|true|false|null|undefined|from)\b)/g;
     
-    // Strings in quotes or backticks
-    html = html.replace(/("(?:[^"\\]|\\.)*")/g, '<span class="syntax-string">$1</span>');
-    html = html.replace(/('(?:[^'\\]|\\.)*')/g, '<span class="syntax-string">$1</span>');
-    html = html.replace(/(`(?:[^`\\]|\\.)*`)/g, '<span class="syntax-string">$1</span>');
-    
-    // Core Language Keywords
-    const keywords = /\b(const|let|var|function|return|import|export|default|class|extends|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|new|this|typeof|instanceof|async|await|true|false|null|undefined|from)\b/g;
-    html = html.replace(keywords, '<span class="syntax-keyword">$1</span>');
+    html = html.replace(tokenRegex, (match, comment, string, keyword) => {
+      if (comment) {
+        return `<span class="syntax-comment">${comment}</span>`;
+      }
+      if (string) {
+        return `<span class="syntax-string">${string}</span>`;
+      }
+      if (keyword) {
+        return `<span class="syntax-keyword">${keyword}</span>`;
+      }
+      return match;
+    });
     
     // JSX elements
-    html = html.replace(/(&lt;[a-zA-Z0-9_]+)/g, '<span class="syntax-tag">$1</span>');
-    html = html.replace(/(&lt;\/[a-zA-Z0-9_]+&gt;)/g, '<span class="syntax-tag">$1</span>');
+    if (filePath.endsWith('.jsx') || filePath.endsWith('.js')) {
+      html = html.replace(/(&lt;\/?[a-zA-Z0-9_]+)/g, '<span class="syntax-tag">$1</span>');
+    }
   } else if (filePath.endsWith('.md')) {
     // Headers
     html = html.replace(/^(#+.*)/g, '<span class="syntax-header">$1</span>');

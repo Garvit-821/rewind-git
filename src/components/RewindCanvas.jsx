@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import CommitTimeline from './CommitTimeline';
 
 // Neon colors assigned to branches
 const BRANCH_COLORS = {
@@ -19,7 +18,7 @@ const DAMPING = 0.55;        // Lower damping (higher friction) stabilizes the s
 const VERTICAL_SPACING = 90; // Gap between parallel branch lanes
 const HORIZONTAL_SPACING = 150; // Chronological separation
 
-export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
+export default function RewindCanvas({ commits, sliderVal, setSliderVal, repoInput }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -32,6 +31,64 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
   const [hoveredNode, setHoveredNode] = useState(null);
   const [hoveredLeaf, setHoveredLeaf] = useState(null);
   const [hudPos, setHudPos] = useState({ x: 0, y: 0 });
+  
+  // Replay states
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+
+  // Custom vertical slider drag and tick-hover states
+  const timelineRef = useRef(null);
+  const [isDraggingSlider, setIsDraggingSlider] = useState(false);
+  const [hoveredTickIdx, setHoveredTickIdx] = useState(null);
+
+  const updateSliderValFromEvent = (e) => {
+    if (!timelineRef.current) return;
+    const rect = timelineRef.current.getBoundingClientRect();
+    let relativeY = e.clientY - rect.top;
+    relativeY = Math.max(0, Math.min(rect.height, relativeY));
+    const ratio = relativeY / rect.height;
+    const newVal = Math.round(ratio * (sortedCommits.length - 1));
+    setSliderVal(newVal);
+  };
+
+  useEffect(() => {
+    const handleGlobalMouseMove = (e) => {
+      if (!isDraggingSlider) return;
+      updateSliderValFromEvent(e);
+    };
+    const handleGlobalMouseUp = () => {
+      setIsDraggingSlider(false);
+    };
+
+    if (isDraggingSlider) {
+      window.addEventListener('mousemove', handleGlobalMouseMove);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDraggingSlider, sortedCommits.length]);
+
+  // Autoplay Timer Loop
+  useEffect(() => {
+    let timer = null;
+    if (isPlaying) {
+      const intervalDuration = Math.max(50, Math.round(1500 / playbackSpeed));
+      timer = setInterval(() => {
+        setSliderVal((prev) => {
+          if (prev >= sortedCommits.length - 1) {
+            setIsPlaying(false);
+            return prev;
+          }
+          return prev + 1;
+        });
+      }, intervalDuration);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isPlaying, sortedCommits.length, setSliderVal, playbackSpeed]);
 
   // Physics and interaction refs (to bypass React re-renders on the physics frame loop)
   const stateRef = useRef({
@@ -41,7 +98,8 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
     isDraggingCanvas: false,
     dragStart: { x: 0, y: 0 },
     draggedNodeId: null,
-    mouse: { x: 0, y: 0 } // Screen space coordinates
+    mouse: { x: 0, y: 0 }, // Screen space coordinates
+    particles: []      // Swirling antigravity particles
   });
 
   // Assign lanes and branches to each commit
@@ -190,26 +248,114 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
 
       const cx = canvas.width / 2;
       const cy = canvas.height / 2;
+      const bob = Math.sin(Date.now() * 0.0018) * 8 - 45; // antigravity lifting offset
+
+      // ----------------------------------------------------
+      // Particle System Physics (Antigravity Swirling & Detached Leaves)
+      // ----------------------------------------------------
+      // Spawn new particles from the ground portal area (near tx, ty + 165)
+      const rootCommit = sortedCommits[0];
+      const rootNode = rootCommit ? s.nodes[rootCommit.id] : null;
+      if (rootNode && rootNode.opacity > 0.05 && Math.random() < 0.35) {
+        s.particles.push({
+          x: rootNode.x + (Math.random() - 0.5) * 50,
+          y: rootNode.y + 165 + (Math.random() - 0.5) * 10,
+          vx: (Math.random() - 0.5) * 1.5,
+          vy: -1.2 - Math.random() * 2.0, // Rising upward
+          life: 1.0,
+          decay: 0.008 + Math.random() * 0.012,
+          size: 4 + Math.random() * 8,
+          color: Math.random() > 0.15 ? '#4ade80' : '#80ff80',
+          angle: Math.random() * Math.PI * 2,
+          angularSpeed: (Math.random() - 0.5) * 0.15,
+          type: 'ground_portal'
+        });
+      }
+
+      // Detach rising particles from the canopy nodes
+      activeNodes.forEach(node => {
+        if (node.opacity > 0.1 && node.active && Math.random() < 0.012) {
+          s.particles.push({
+            x: node.x + (Math.random() - 0.5) * 30,
+            y: node.y + (Math.random() - 0.5) * 30,
+            vx: (Math.random() - 0.5) * 0.8,
+            vy: -0.5 - Math.random() * 1.2, // Rising upward
+            life: 1.0,
+            decay: 0.005 + Math.random() * 0.008,
+            size: 5 + Math.random() * 9,
+            color: node.color || '#4ade80',
+            angle: Math.random() * Math.PI * 2,
+            angularSpeed: (Math.random() - 0.5) * 0.08,
+            type: 'canopy_drift'
+          });
+        }
+      });
+
+      // Update active particles
+      s.particles = s.particles.filter(p => {
+        p.life -= p.decay;
+        if (p.life <= 0) return false;
+
+        // Apply a gentle swirling swirl force and upward gravity
+        p.vx += Math.sin(p.y * 0.03 + p.life * 4.0) * 0.06;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.angle += p.angularSpeed;
+        return true;
+      });
 
       // ----------------------------------------------------
       // 1. UPDATE NODE TARGET COORD & TRANSITION ANIMATIONS
       // ----------------------------------------------------
+      const calculatedTargets = {};
+      sortedCommits.forEach((commit, index) => {
+        const layout = commitLayouts[commit.id] || { lane: 0, branchType: 'main' };
+        
+        if (index === 0) {
+          calculatedTargets[commit.id] = {
+            x: 0,
+            y: 0,
+            angle: -Math.PI / 2, // Straight up
+            length: 130,
+            lane: 0
+          };
+        } else {
+          const primaryParentId = commit.parentIds[0];
+          const parentTarget = calculatedTargets[primaryParentId] || { x: 0, y: 0, angle: -Math.PI / 2, length: 130, lane: 0 };
+          
+          let angle = parentTarget.angle;
+          // Scale branch lengths down slowly as they get deeper
+          let length = parentTarget.length * 0.94;
+          if (length < 75) length = 75;
+
+          // If starts a new lane, branch out at a wide angle (symmetrical left/right)
+          if (layout.lane > 0 && (!commitLayouts[primaryParentId] || commitLayouts[primaryParentId].lane !== layout.lane)) {
+            const side = layout.lane % 2 === 1 ? -1 : 1;
+            const splitAngle = parentTarget.lane === 0 ? 52 : 36;
+            angle = parentTarget.angle + side * (splitAngle * Math.PI / 180);
+          } else {
+            // Curving branch path: gradually bend back towards vertical (-Math.PI / 2)
+            const diffToVertical = -Math.PI / 2 - parentTarget.angle;
+            angle = parentTarget.angle + diffToVertical * 0.26 + Math.sin(index * 2.3) * (4 * Math.PI / 180);
+          }
+
+          calculatedTargets[commit.id] = {
+            x: parentTarget.x + Math.cos(angle) * length,
+            y: parentTarget.y + Math.sin(angle) * length,
+            angle,
+            length,
+            lane: layout.lane
+          };
+        }
+      });
+
       sortedCommits.forEach((commit, index) => {
         const node = s.nodes[commit.id];
         if (!node) return;
 
-        // Vertical Yggdrasil Tree Layout: Grow upwards
-        // Root commit (index 0) near base, growing upwards (subtracting index * 130)
-        node.targetY = -index * 130 + 150;
-
-        // Symmetrical branch lanes: main (lane 0) in center, features left, hotfixes right
-        let xOffset = 0;
-        if (node.lane > 0) {
-          const direction = node.lane % 2 === 1 ? -1 : 1;
-          const level = Math.ceil(node.lane / 2);
-          xOffset = direction * level * 120;
-        }
-        node.targetX = xOffset;
+        const target = calculatedTargets[commit.id] || { x: 0, y: 0 };
+        node.targetX = target.x;
+        node.targetY = target.y;
 
         // Visual growth interpolation
         const targetScale = node.active ? 1.0 : 0.0;
@@ -319,7 +465,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
             const worldMouseX = (s.mouse.x - s.pan.x) / s.zoom;
             const worldMouseY = (s.mouse.y - s.pan.y) / s.zoom;
             node.x = worldMouseX;
-            node.y = worldMouseY;
+            node.y = worldMouseY - bob;
             node.vx = 0;
             node.vy = 0;
           } else {
@@ -348,6 +494,44 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
       ctx.translate(s.pan.x, s.pan.y);
       ctx.scale(s.zoom, s.zoom);
 
+      // ---- HELPER: draw a beautiful organic leaf shape ----
+      const drawOrganicLeaf = (x, y, size, angle, type = 'normal') => {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(size * 0.4, -size * 0.35, size, 0);
+        ctx.quadraticCurveTo(size * 0.4, size * 0.35, 0, 0);
+        
+        let fill = '#4ade80'; // bright green
+        let shadow = '#22c55e';
+        if (type === 'amber') {
+          fill = '#fbbf24';
+          shadow = '#fbbf24';
+        } else if (type === 'red') {
+          fill = '#f87171';
+          shadow = '#f87171';
+        } else if (type === 'light') {
+          fill = 'rgba(200,255,180,0.95)';
+          shadow = '#39ff14';
+        }
+
+        ctx.fillStyle = fill;
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = shadow;
+        ctx.fill();
+        
+        // Tiny central vein
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(size * 0.85, 0);
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        ctx.restore();
+      };
+
       // ---- HELPER: draw a fractal sub-branch off a point ----
       const drawFractalTwig = (sx, sy, angle, len, depth) => {
         if (depth <= 0 || len < 2) return;
@@ -369,23 +553,35 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
         ctx.shadowBlur = 0;
         ctx.stroke();
 
-        // Leaf dot at tip
-        ctx.beginPath();
-        ctx.arc(ex, ey, Math.max(1, depth * 1.2), 0, 2 * Math.PI);
-        ctx.fillStyle = depth >= 2 ? 'rgba(200,255,180,0.9)' : 'rgba(120,255,120,0.7)';
-        ctx.shadowBlur = 6; ctx.shadowColor = '#39ff14';
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        // Organic leaf at tips
+        if (depth <= 1) {
+          drawOrganicLeaf(ex, ey, depth === 1 ? 14 : 10, angle, 'light');
+        }
 
         // Recurse two child sub-branches
-        const spread = 0.4 + (3 - depth) * 0.15;
-        drawFractalTwig(ex, ey, angle - spread, len * 0.65, depth - 1);
-        drawFractalTwig(ex, ey, angle + spread, len * 0.65, depth - 1);
+        const spread = 0.45 + (3 - depth) * 0.12;
+        drawFractalTwig(ex, ey, angle - spread, len * 0.6, depth - 1);
+        drawFractalTwig(ex, ey, angle + spread, len * 0.6, depth - 1);
       };
 
       // ---- HELPER: draw a full glowing vine between two world points ----
       const drawGlowingVine = (x1, y1, x2, y2, thickness, parentIdx) => {
-        const midY = (y1 + y2) / 2;
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1.0;
+        const angle = Math.atan2(dy, dx);
+        
+        // Perpendicular vector for organic wiggles
+        const perpX = -Math.sin(angle);
+        const perpY = Math.cos(angle);
+        
+        // Alternating organic sway bend
+        const bend = dist * 0.14 * Math.sin(parentIdx * 2.3);
+        const cp1x = x1 + Math.cos(angle) * dist * 0.33 + perpX * bend;
+        const cp1y = y1 + Math.sin(angle) * dist * 0.33 + perpY * bend;
+        const cp2x = x2 - Math.cos(angle) * dist * 0.33 - perpX * bend;
+        const cp2y = y2 - Math.sin(angle) * dist * 0.33 - perpY * bend;
+
         // Three-pass: bloom -> main green -> white core
         const passes = [
           { color: 'rgba(57,255,20,0.12)', w: thickness * 4.5, blur: 22, shadow: '#39ff14' },
@@ -395,7 +591,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
         passes.forEach(p => {
           ctx.beginPath();
           ctx.moveTo(x1, y1);
-          ctx.bezierCurveTo(x1, midY, x2, midY, x2, y2);
+          ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2);
           ctx.strokeStyle = p.color;
           ctx.lineWidth = p.w;
           ctx.shadowBlur = p.blur;
@@ -405,64 +601,80 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
         ctx.shadowBlur = 0;
 
         // Sample points along the bezier and sprout fractal sub-branches
-        const steps = 9;
+        const steps = 7;
         for (let k = 1; k < steps; k++) {
           const t = k / steps;
           const mt = 1 - t;
-          // Cubic bezier with control points (x1,midY) and (x2,midY)
-          const bx = mt * mt * mt * x1 + 3 * mt * mt * t * x1 + 3 * mt * t * t * x2 + t * t * t * x2;
-          const by = mt * mt * mt * y1 + 3 * mt * mt * t * midY + 3 * mt * t * t * midY + t * t * t * y2;
+          // Cubic bezier with control points cp1 and cp2
+          const bx = mt * mt * mt * x1 + 3 * mt * mt * t * cp1x + 3 * mt * t * t * cp2x + t * t * t * x2;
+          const by = mt * mt * mt * y1 + 3 * mt * mt * t * cp1y + 3 * mt * t * t * cp2y + t * t * t * y2;
 
-          // Tangent direction perpendicular to the branch
-          const tanX = -3 * mt * mt * x1 + 3 * (mt * mt - 2 * mt * t) * x1 + 3 * (2 * mt * t - t * t) * x2 + 3 * t * t * x2;
-          const tanY = -3 * mt * mt * y1 + 3 * (mt * mt - 2 * mt * t) * midY + 3 * (2 * mt * t - t * t) * midY + 3 * t * t * y2;
+          // Tangent direction perpendicular to the branch curve
+          const tanX = -3 * mt * mt * x1 + 3 * (mt * mt - 2 * mt * t) * cp1x + 3 * (2 * mt * t - t * t) * cp2x + 3 * t * t * x2;
+          const tanY = -3 * mt * mt * y1 + 3 * (mt * mt - 2 * mt * t) * cp1y + 3 * (2 * mt * t - t * t) * cp2y + 3 * t * t * y2;
           const tanLen = Math.sqrt(tanX * tanX + tanY * tanY) || 1;
           const perpAngle = Math.atan2(tanX / tanLen, -(tanY / tanLen)); // 90° CCW
 
-          // Alternate sides: even k → left, odd k → right, plus tiny off-axis variation
+          // Alternate sides
           const side = k % 2 === 0 ? 1 : -1;
           const twigAngle = perpAngle * side + (Math.sin(k * 2.7 + x1) * 0.18);
-          const twigLen = (14 + Math.sin(k * 1.9 + y1) * 8) * (1 - parentIdx * 0.06);
+          const twigLen = (20 + Math.sin(k * 1.9 + y1) * 8) * (1 - parentIdx * 0.03);
 
-          drawFractalTwig(bx, by, twigAngle, Math.max(6, twigLen), 2);
+          drawFractalTwig(bx, by, twigAngle, Math.max(8, twigLen), 3);
         }
       };
 
       // ---- DRAW TRUNK (root node base) ----
-      const rootCommit = sortedCommits[0];
-      const rootNode = rootCommit ? s.nodes[rootCommit.id] : null;
       if (rootNode && rootNode.opacity > 0.05) {
         const tx = rootNode.x, ty = rootNode.y;
-        const trunkBot = ty + 160;
+        const trunkBot = ty + 165; // Static ground floor
 
-        // Thick bloom
-        ctx.beginPath();
-        ctx.moveTo(tx, trunkBot); ctx.lineTo(tx, ty);
-        ctx.strokeStyle = 'rgba(57,255,20,0.18)';
-        ctx.lineWidth = 36; ctx.shadowBlur = 30; ctx.shadowColor = '#39ff14';
-        ctx.stroke();
-
-        // Main green bark
-        ctx.beginPath();
-        ctx.moveTo(tx, trunkBot); ctx.lineTo(tx, ty);
-        ctx.strokeStyle = 'rgba(34,197,94,0.9)';
-        ctx.lineWidth = 14; ctx.shadowBlur = 14; ctx.shadowColor = '#22c55e';
-        ctx.stroke();
-
-        // White electric core
-        ctx.beginPath();
-        ctx.moveTo(tx, trunkBot); ctx.lineTo(tx, ty);
-        ctx.strokeStyle = '#f0fff0';
-        ctx.lineWidth = 3.5; ctx.shadowBlur = 6; ctx.shadowColor = '#ffffff';
-        ctx.stroke();
+        // Swirling portal ripples on the ground
+        const portalTime = Date.now() * 0.0015;
+        for (let r = 1; r <= 4; r++) {
+          ctx.beginPath();
+          const swirlRadiusX = r * 22 + Math.sin(portalTime + r) * 3;
+          const swirlRadiusY = r * 6 + Math.cos(portalTime + r) * 1.5;
+          ctx.ellipse(tx, trunkBot, swirlRadiusX, swirlRadiusY, portalTime * 0.1 * (r % 2 === 0 ? 1 : -1), 0, 2 * Math.PI);
+          ctx.strokeStyle = `rgba(57, 255, 20, ${0.45 / r})`;
+          ctx.lineWidth = 1.8;
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = '#39ff14';
+          ctx.stroke();
+        }
         ctx.shadowBlur = 0;
+      }
 
-        // Root ground glow
-        const rGrad = ctx.createRadialGradient(tx, trunkBot, 0, tx, trunkBot, 50);
-        rGrad.addColorStop(0, 'rgba(57,255,20,0.22)');
-        rGrad.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = rGrad;
-        ctx.fillRect(tx - 50, trunkBot - 10, 100, 60);
+      // Apply upward-lifting buoyancy bobbing to the entire tree skeleton
+      ctx.save();
+      ctx.translate(0, bob);
+
+      if (rootNode && rootNode.opacity > 0.05) {
+        const tx = rootNode.x, ty = rootNode.y;
+        // Elevated base of the trunk floating above the portal
+        const trunkFloatBase = ty + 115;
+        
+        // Draw multiple organic flared trunk strands
+        const baseWidth = 48;
+        const topWidth = 14;
+        const strandsCount = 6;
+        for (let i = 0; i < strandsCount; i++) {
+          const ratio = i / (strandsCount - 1);
+          const startX = tx + (ratio - 0.5) * baseWidth;
+          const endX = tx + (ratio - 0.5) * topWidth;
+
+          ctx.beginPath();
+          ctx.moveTo(startX, trunkFloatBase);
+          ctx.quadraticCurveTo(tx + (ratio - 0.5) * topWidth * 1.5, (trunkFloatBase + ty) / 2, endX, ty);
+
+          const isCore = i === 2 || i === 3;
+          ctx.strokeStyle = isCore ? '#f0fff0' : 'rgba(34, 197, 94, 0.85)';
+          ctx.lineWidth = isCore ? 2.2 : 4.5;
+          ctx.shadowBlur = isCore ? 6 : 12;
+          ctx.shadowColor = isCore ? '#ffffff' : '#39ff14';
+          ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
       }
 
       // ---- DRAW EDGES as glowing fractal vines ----
@@ -486,7 +698,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
         ctx.save();
         ctx.globalAlpha = node.opacity;
 
-        const size = 9 * node.scale;
+        const size = 11 * node.scale;
 
         // Bloom ring
         ctx.beginPath();
@@ -501,14 +713,26 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
         ctx.fillStyle = '#22c55e';
         ctx.shadowBlur = 10; ctx.shadowColor = '#39ff14';
         ctx.fill();
-
-        // White hot core
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, size * 0.4, 0, 2 * Math.PI);
-        ctx.fillStyle = '#f0fff0';
-        ctx.shadowBlur = 6; ctx.shadowColor = '#fff';
-        ctx.fill();
         ctx.shadowBlur = 0;
+
+        // Outer white border
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // White letter inside
+        if (node.scale > 0.3) {
+          ctx.fillStyle = '#ffffff';
+          ctx.font = `bold ${Math.max(9, Math.round(size * 1.15))}px "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          // Extract the first letter of commit message or 'C' as fallback
+          const rawChar = node.commit.message ? node.commit.message.trim().replace(/^[^a-zA-Z]+/, '') : '';
+          const char = rawChar.substring(0, 1).toUpperCase() || 'C';
+          ctx.fillText(char, node.x, node.y + 0.5);
+        }
 
         // Hovered ring
         if (hoveredNode && hoveredNode.id === node.commit.id) {
@@ -524,42 +748,32 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
         const leafCount = Math.min(details.length, 6);
         for (let j = 0; j < leafCount; j++) {
           const file = details[j];
-          const angle = -Math.PI / 2 + (j - (leafCount - 1) / 2) * 0.42;
+          const leafAngle = -Math.PI / 2 + (j - (leafCount - 1) / 2) * 0.42;
           const sc = node.scale;
-          const bx = node.x + Math.cos(angle) * (size + 2);
-          const by = node.y + Math.sin(angle) * (size + 2);
-          const tx2 = node.x + Math.cos(angle) * (size + 22 * sc);
-          const ty2 = node.y + Math.sin(angle) * (size + 22 * sc);
-          const la = angle - 0.3, ra = angle + 0.3;
-          const cd = size + 12 * sc;
-          const clx = node.x + Math.cos(la) * cd, cly = node.y + Math.sin(la) * cd;
-          const crx = node.x + Math.cos(ra) * cd, cry = node.y + Math.sin(ra) * cd;
+          const bx = node.x + Math.cos(leafAngle) * (size + 2);
+          const by = node.y + Math.sin(leafAngle) * (size + 2);
+          const tx2 = node.x + Math.cos(leafAngle) * (size + 20 * sc);
+          const ty2 = node.y + Math.sin(leafAngle) * (size + 20 * sc);
 
-          let lc = '#4ade80';
-          if (file.status.startsWith('M')) lc = '#fbbf24';
-          else if (file.status.startsWith('D')) lc = '#f87171';
+          let statusType = 'normal';
+          if (file.status.startsWith('M')) statusType = 'amber';
+          else if (file.status.startsWith('D')) statusType = 'red';
 
-          // Stem
-          ctx.beginPath(); ctx.moveTo(node.x, node.y); ctx.lineTo(bx, by);
-          ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.2 * sc;
-          ctx.shadowBlur = 4; ctx.shadowColor = lc; ctx.stroke();
+          // Draw stem line
+          ctx.beginPath();
+          ctx.moveTo(node.x, node.y);
+          ctx.lineTo(bx, by);
+          ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+          ctx.lineWidth = 1.2 * sc;
+          ctx.stroke();
 
-          // Leaf blade
-          ctx.beginPath(); ctx.moveTo(bx, by);
-          ctx.quadraticCurveTo(clx, cly, tx2, ty2);
-          ctx.quadraticCurveTo(crx, cry, bx, by);
-          ctx.fillStyle = lc; ctx.shadowBlur = 8; ctx.shadowColor = lc; ctx.fill();
+          // Draw organic leaf at end of stem
+          drawOrganicLeaf(bx, by, 15 * sc, leafAngle, statusType);
 
-          // Center vein
-          ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(tx2, ty2);
-          ctx.strokeStyle = '#fff'; ctx.lineWidth = 0.9 * sc; ctx.shadowBlur = 3; ctx.stroke();
-          ctx.shadowBlur = 0;
-
-          // Hovered leaf ring
           const isLeafHovered = hoveredLeaf && hoveredLeaf.file.path === file.path && hoveredLeaf.commitId === node.commit.id;
           if (isLeafHovered) {
             ctx.beginPath();
-            ctx.arc(tx2 - Math.cos(angle) * 5, ty2 - Math.sin(angle) * 5, 8 * sc, 0, 2 * Math.PI);
+            ctx.arc(tx2 - Math.cos(leafAngle) * 5, ty2 - Math.sin(leafAngle) * 5, 8 * sc, 0, 2 * Math.PI);
             ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
           }
         }
@@ -567,7 +781,31 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
         ctx.restore();
       });
 
-      ctx.restore();
+      ctx.restore(); // Restore bob translation
+
+      // ---- DRAW DYNAMIC PORTAL & CANOPY PARTICLES ----
+      s.particles.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = p.life;
+        
+        if (p.type === 'canopy_drift') {
+          let leafType = 'light';
+          if (p.color === '#fbbf24' || p.color === 'amber') leafType = 'amber';
+          else if (p.color === '#f87171' || p.color === 'red') leafType = 'red';
+          drawOrganicLeaf(p.x, p.y, p.size, p.angle, leafType);
+        } else {
+          // Draw portal light particle
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * 0.6, 0, 2 * Math.PI);
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowBlur = 6;
+          ctx.shadowColor = '#39ff14';
+          ctx.fill();
+        }
+        ctx.restore();
+      });
+
+      ctx.restore(); // Restore main pan/zoom context
 
       // ----------------------------------------------------
       // 4. MOUSE HOVER DETECTION (Calculated in UI space)
@@ -585,7 +823,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
 
         // Check if mouse is hovering over the node core
         const dx = node.x - worldMouseX;
-        const dy = node.y - worldMouseY;
+        const dy = (node.y + bob) - worldMouseY;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist <= size + 5) {
@@ -602,7 +840,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
           const leafScale = node.scale;
           const leafDist = size + 16 * leafScale; // Center of leaf
           const leafX = node.x + Math.cos(angle) * leafDist;
-          const leafY = node.y + Math.sin(angle) * leafDist;
+          const leafY = (node.y + bob) + Math.sin(angle) * leafDist;
 
           const ldx = leafX - worldMouseX;
           const ldy = leafY - worldMouseY;
@@ -671,11 +909,13 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
     const worldMouseX = (x - s.pan.x) / s.zoom;
     const worldMouseY = (y - s.pan.y) / s.zoom;
 
+    const bob = Math.sin(Date.now() * 0.0018) * 8 - 45;
+
     const nodesArray = Object.values(s.nodes);
     for (const node of nodesArray) {
       if (node.opacity < 0.1) continue;
       const dx = node.x - worldMouseX;
-      const dy = node.y - worldMouseY;
+      const dy = (node.y + bob) - worldMouseY;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist <= 22) {
         clickedNodeId = node.id;
@@ -1222,33 +1462,293 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal }) {
         </div>
       )}
 
-      {/* Control timeline dock at the bottom */}
-      <div
-        className="time-travel-dock"
-        style={{
-          position: 'absolute',
-          bottom: '24px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '85%',
-          maxWidth: '800px',
-          background: 'rgba(11, 15, 25, 0.85)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255,255,255,0.05)',
-          borderRadius: '24px', // Spaced nicely for timeline nodes
-          padding: '16px 24px',
+      {/* Top Left Logo & Path */}
+      <div className="canvas-header-overlay" style={{
+        position: 'absolute',
+        left: '32px',
+        top: '32px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        zIndex: 10
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00f2fe" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px rgba(0, 242, 254, 0.5))' }}>
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+          </svg>
+          <span style={{
+            fontSize: '22px',
+            fontWeight: '800',
+            letterSpacing: '-0.5px',
+            color: '#ffffff',
+            fontFamily: 'var(--font-sans)'
+          }}>
+            rewind<span style={{ color: '#00f2fe' }}>.git</span>
+          </span>
+          <span className="badge" style={{ fontSize: '9px', padding: '2px 6px', height: 'fit-content' }}>v1.0.0-BETA</span>
+        </div>
+        
+        {/* Repo path pill */}
+        <div style={{
           display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-          zIndex: 10,
-          backdropFilter: 'blur(16px)'
-        }}
-      >
-        <CommitTimeline
-          commits={sortedCommits}
-          sliderVal={sliderVal}
-          setSliderVal={setSliderVal}
-        />
+          alignItems: 'center',
+          gap: '6px',
+          background: 'rgba(11, 15, 25, 0.75)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: '9999px',
+          padding: '6px 12px',
+          fontSize: '11px',
+          color: '#e2e8f0',
+          fontFamily: 'monospace',
+          backdropFilter: 'blur(8px)',
+          maxWidth: '320px',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }}>
+          {repoInput && (repoInput.startsWith('http') || repoInput.startsWith('git@')) ? (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+            </svg>
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
+          )}
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {repoInput || 'local-repository'}
+          </span>
+        </div>
+      </div>
+
+      {/* Legend overlay at Top Right */}
+      <div className="canvas-legend" style={{
+        position: 'absolute',
+        right: '32px',
+        top: '32px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        background: 'rgba(11, 15, 25, 0.75)',
+        padding: '12px 16px',
+        borderRadius: '12px',
+        border: '1px solid rgba(255,255,255,0.08)',
+        backdropFilter: 'blur(8px)',
+        zIndex: 10,
+        fontSize: '11px',
+        fontFamily: 'monospace',
+        color: '#fff'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ width: '8px', height: '8px', backgroundColor: '#10b981', borderRadius: '50%', boxShadow: '0 0 6px #10b981' }} />
+          <span>Green: added</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ width: '8px', height: '8px', backgroundColor: '#f59e0b', borderRadius: '50%', boxShadow: '0 0 6px #f59e0b' }} />
+          <span>Amber: modified</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ width: '8px', height: '8px', backgroundColor: '#ef4444', borderRadius: '50%', boxShadow: '0 0 6px #ef4444' }} />
+          <span>Red: deleted</span>
+        </div>
+      </div>
+
+      {/* Vertical Timeline Slider overlay on the left */}
+      <div className="vertical-timeline-container" style={{
+        position: 'absolute',
+        left: '32px',
+        top: '140px',
+        bottom: '140px',
+        width: '32px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        zIndex: 10,
+        userSelect: 'none'
+      }}>
+        <div 
+          ref={timelineRef}
+          onMouseDown={(e) => {
+            setIsDraggingSlider(true);
+            updateSliderValFromEvent(e);
+          }}
+          style={{
+            position: 'relative',
+            height: '100%',
+            width: '6px',
+            background: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '3px',
+            cursor: 'pointer'
+          }}
+        >
+          {/* Active progress fill (from top to current value) */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: `${(sliderVal / (sortedCommits.length - 1 || 1)) * 100}%`,
+            background: '#10b981',
+            boxShadow: '0 0 12px #10b981',
+            borderRadius: '3px'
+          }} />
+
+          {/* Timeline dots reference */}
+          {sortedCommits.map((commit, idx) => {
+            const isTickActive = idx === sliderVal;
+            const isTickHovered = idx === hoveredTickIdx;
+            const topPct = (idx / (sortedCommits.length - 1 || 1)) * 100;
+            
+            // Assign dot color based on branch type
+            let color = '#00f2fe'; // Main (cyan)
+            if (commit.parentIds.length > 1) {
+              color = '#d946ef'; // Feature (purple)
+            } else if (commit.message.toLowerCase().includes('fix') || commit.message.toLowerCase().includes('bug')) {
+              color = '#f59e0b'; // Hotfix (amber)
+            } else if (idx % 3 === 1) {
+              color = '#d946ef';
+            } else if (idx % 5 === 4) {
+              color = '#f59e0b';
+            }
+
+            return (
+              <div
+                key={commit.id}
+                onMouseEnter={() => setHoveredTickIdx(idx)}
+                onMouseLeave={() => setHoveredTickIdx(null)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSliderVal(idx);
+                }}
+                style={{
+                  position: 'absolute',
+                  top: `${topPct}%`,
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: isTickActive ? '12px' : '8px',
+                  height: isTickActive ? '12px' : '8px',
+                  backgroundColor: isTickActive ? '#ffffff' : color,
+                  border: isTickActive ? `2px solid #10b981` : '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  boxShadow: isTickActive ? '0 0 8px #10b981' : 'none',
+                  zIndex: isTickActive ? 3 : 2,
+                  transition: 'all 0.15s'
+                }}
+              >
+                {/* Tooltip on hovering tick */}
+                {isTickHovered && (
+                  <div style={{
+                    position: 'absolute',
+                    left: '24px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'rgba(15, 23, 42, 0.95)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '11px',
+                    fontFamily: 'monospace',
+                    whiteSpace: 'nowrap',
+                    zIndex: 200,
+                    pointerEvents: 'none',
+                    backdropFilter: 'blur(8px)'
+                  }}>
+                    <div style={{ color: '#00f2fe', fontWeight: 'bold', fontSize: '10px' }}>
+                      {commit.id.substring(0, 7)} (Commit {idx + 1}/{sortedCommits.length})
+                    </div>
+                    <div style={{ margin: '2px 0', fontWeight: 'bold' }}>
+                      {commit.message.length > 35 ? commit.message.substring(0, 35) + '...' : commit.message}
+                    </div>
+                    <div style={{ opacity: 0.6, fontSize: '9px' }}>
+                      {commit.author} • {new Date(commit.timestamp * 1000).toLocaleDateString()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Draggable thumb visual overlay */}
+          <div style={{
+            position: 'absolute',
+            left: '50%',
+            top: `${(sliderVal / (sortedCommits.length - 1 || 1)) * 100}%`,
+            transform: 'translate(-50%, -50%)',
+            width: '18px',
+            height: '18px',
+            background: '#ffffff',
+            border: '2px solid #10b981',
+            borderRadius: '50%',
+            boxShadow: '0 0 10px rgba(0, 0, 0, 0.6)',
+            pointerEvents: 'none',
+            zIndex: 4
+          }} />
+        </div>
+      </div>
+
+      {/* Playback Speed Controller at Bottom Left */}
+      <div className="playback-speed-container" style={{
+        position: 'absolute',
+        left: '32px',
+        bottom: '32px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px',
+        zIndex: 10,
+        color: '#fff',
+        fontFamily: 'sans-serif'
+      }}>
+        <span style={{ fontSize: '11px', opacity: 0.8, fontWeight: '500' }}>Playback speed</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            onClick={() => setIsPlaying(!isPlaying)}
+            style={{
+              background: isPlaying ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+              border: isPlaying ? '1px solid rgba(239, 68, 68, 0.5)' : '1px solid rgba(16, 185, 129, 0.5)',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: isPlaying ? '#f87171' : '#10b981',
+              fontSize: '12px',
+              transition: 'all 0.2s',
+              outline: 'none'
+            }}
+            title={isPlaying ? 'Pause Replay' : 'Play Replay'}
+          >
+            {isPlaying ? '⏸' : '▶'}
+          </button>
+          
+          <input
+            type="range"
+            min="1"
+            max="20"
+            value={playbackSpeed}
+            onChange={(e) => setPlaybackSpeed(parseInt(e.target.value))}
+            style={{
+              width: '90px',
+              height: '4px',
+              background: 'rgba(255,255,255,0.2)',
+              borderRadius: '2px',
+              accentColor: '#10b981',
+              outline: 'none',
+              cursor: 'pointer'
+            }}
+          />
+          <span style={{ fontSize: '11px', fontFamily: 'monospace', minWidth: '24px' }}>
+            {playbackSpeed}x
+          </span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', opacity: 0.5, marginTop: '-2px', paddingLeft: '42px', width: '132px' }}>
+          <span>0</span>
+          <span>2.5x</span>
+        </div>
       </div>
     </div>
   );
