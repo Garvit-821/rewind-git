@@ -7,6 +7,13 @@ export default defineConfig({
   server: {
     watch: {
       ignored: ['**/temp-clone-*/**']
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      }
     }
   }
 })
+

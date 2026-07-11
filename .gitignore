@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Rewind temp clone directories
+temp-clone-*
+
+# Netlify local cache
+.netlify

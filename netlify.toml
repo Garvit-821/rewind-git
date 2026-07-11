@@ -1,0 +1,29 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["harvester.js"]
+
+[[redirects]]
+  from = "/api/harvest"
+  to = "/.netlify/functions/harvest"
+  status = 200
+
+[[redirects]]
+  from = "/api/file-content"
+  to = "/.netlify/functions/file-content"
+  status = 200
+
+[[redirects]]
+  from = "/api/cleanup"
+  to = "/.netlify/functions/cleanup"
+  status = 200
+
+# SPA fallback — all other routes serve index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

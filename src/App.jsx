@@ -36,7 +36,7 @@ export default function App() {
     }
 
     try {
-      const response = await fetch('http://localhost:3001/api/file-content', {
+      const response = await fetch('/api/file-content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -191,7 +191,7 @@ export default function App() {
     setLoadingStatus(isRemote ? 'Cloning remote repository (shallow depth)...' : 'Harvesting local repository log details...');
 
     try {
-      const response = await fetch('http://localhost:3001/api/harvest', {
+      const response = await fetch('/api/harvest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repoPath: input })
