@@ -7,6 +7,7 @@
 **rewind.git** is an open-source, dark-mode developer tool that transforms any local or remote Git repository's commit history into an interactive, visually stunning canvas simulation. Branches grow as luminous botanical vines. Commits are glowing knots. File changes sprout as color-coded leaves. Traverse history, explore code trees, and audit diffs — all in real time.
 
 ![rewind.git Landing Page](./landingpage.png)
+![rewind.git Workspace](./wp.png)
 
 ---
 
