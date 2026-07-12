@@ -13,25 +13,17 @@
 
 ## What's New
 
-### v1.0.0-BETA — Yggdrasil Electric Tree (Latest)
+### v2.0.0 — Hyper-Realistic 3D WebGL Yggdrasil Tree (Latest)
 
-- **Fractal Botanical Renderer** — The timeline canvas has been completely rewritten. Branches are now rendered as multi-pass glowing vines: a wide neon bloom layer, a solid green bark body, and a bright white electric core line — exactly like the luminous Yggdrasil tree of Norse mythology.
-- **Recursive Fractal Sub-branches** — Along every Bezier limb, fractal sub-branches sprout at 9 sampled positions alternating left/right. Each sub-branch recursively generates depth-2 twig clusters with glowing leaf-tip dots, producing dense organic foliage.
-- **Electric Trunk Base** — The root commit is anchored by a thick glowing trunk (36px bloom + 14px green bark + 3.5px white electric core) rising from a radial ground glow.
-- **Color-Coded Change Leaves** — File changes per commit are rendered as pointed organic leaf blades sprouting upward from each node:
-  - **Green** → Added files
-  - **Amber** → Modified files
-  - **Red** → Deleted files
-- **Vertical Timeline Layout** — Commits now grow vertically upward from the base, with branches spreading symmetrically left (features) and right (hotfixes), forming a natural tree silhouette.
-- **Cinematic Landing Video Background** — Integrated a beautiful high-fidelity glowing green cosmos loop (`bg.mp4`) as the background of the landing page.
-- **Restart & Play Controls** — Added a `Restart & Play` button to instantly jump back to the first commit and auto-replay the history.
-- **Playback Speed Adjuster** — A custom range slider allowing speed adjustments from `1x` (1500ms per commit) up to `20x` (75ms per commit) dynamically during replay.
-- **Vector SVG Exporter** — Download a vector-based `.svg` file of the current Yggdrasil tree state, capturing the trunk, branches, recursive twigs, and change leaves in pixel-perfect scale.
-- **Time-Lapse Video Recorder** — Capture and record a video (`.webm`) of your timeline growth dynamically using native HTML5 `captureStream` and `MediaRecorder` APIs. It automatically starts at commit 0 and stops recording at the final commit.
-- **Leaf Hover HUD** — Hovering over any individual leaf reveals a floating glassmorphic card showing the exact file path, change type, commit SHA, and author.
-- **Deep Forest Background** — Canvas background replaced with a near-pure-black radial gradient with subtle deep-green tones, matching the dark mystical aesthetic of the reference.
-- **Physics Stabilization** — Reduced repulsion constants, added velocity cutoff thresholds, and increased damping to eliminate node vibration and jitter.
-- **Stable Bezier Tree Limbs** — Branch connections are now drawn as smooth vertical S-curves (Bezier with midpoint control), with tapered thickness that reduces toward the canopy twigs.
+- **3D WebGL Tree Visualizer (Three.js)** — Successfully upgraded the 2D HTML5 canvas to a full 3D interactive graphics simulation built with **Three.js**, incorporating advanced concepts from our local 3D skills repository.
+- **Procedural Wood Bark & Foliage Materials** — Implemented physically-based rendering (PBR) materials with dynamically generated CanvasTextures. Branches are procedurally textured like real mossy forest bark (using custom bump map depth displacements), and foliage is generated using custom green leaf alpha-map masks.
+- **Post-Processing Neon Bloom** — Integrated `EffectComposer`, `RenderPass`, and `UnrealBloomPass` to envelop active commit nodes and branch tips in a mystical, radiant electric glow.
+- **Breathe-Animated Point Lights** — Placed dynamic `PointLight` instances inside every active commit node, casting pulsing glows on the surrounding bark and leaves.
+- **Cinematic Camera Focus** — Smoothly interpolates the camera and OrbitControls focus target toward the active commit node as the timeline moves, creating a professional presentation feel.
+- **Ethereal Fairy Dust System** — Added hundreds of glowing rising dust particles swirling around the Yggdrasil trunk and canopy to bring the 3D environment to life.
+- **Ground Swirling Portal** — Concentric rings at the base of the trunk rotate in opposite directions, acting as the magical botanical gateway from which the tree sprouts.
+- **Orbit Camera Controls** — Drag to rotate, pinch/scroll to zoom, and right-click to pan around the 3D Yggdrasil tree in real time.
+- **Seamless Feature Preservation** — Retained compatibility with vector SVG downloads (via 2D projection) and WebM time-lapse video recording (via renderer `preserveDrawingBuffer` stream capture).
 
 ---
 
@@ -69,7 +61,7 @@ flowchart TD
     A[Git Repository] -->|1. Harvest Logs & Diffs| B[server.js Backend]
     B -->|2. Topologically Sorted JSON| C[React Frontend]
     C -->|3. Spring-Force Physics| D[Canvas Nodes Placement]
-    C -->|4. Recursive Fractal Algorithms| E[Yggdrasil Canvas Drawing]
+    C -->|4. Three.js WebGL Renderer| E[WebGL 3D Yggdrasil Rendering]
 ```
 
 ### 1. Data Harvesting (`server.js`)
@@ -92,9 +84,9 @@ To represent history dynamically, `rewind.git` harvests data straight from the s
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | React + Vite, HTML5 Canvas 2D |
-| **Physics Engine** | Custom force-directed spring layout (no library) |
-| **Renderer** | Fractal canvas painter (multi-pass bloom + green bark + white core) |
+| **Frontend** | React + Vite, WebGL |
+| **3D Rendering** | Three.js (OrbitControls, EffectComposer, UnrealBloomPass) |
+| **Physics/Coord Engine** | Custom target-seeking coordinate generator |
 | **Backend** | Node.js HTTP microservice (`server.js`, port `3001`) |
 | **CLI** | Standalone Node.js with ANSI escape sequences |
 | **Git Integration** | Native shell child processes (`git log`, `git clone`, `git show`) |
@@ -137,11 +129,11 @@ node cli.js [path-to-git-repository]
 | Priority | Feature | Description |
 |---|---|---|
 | 🔥 **High** | **Contributor Branch Highlighting** | When a commit belongs to a specific contributor, that entire branch of the Yggdrasil tree glows in a distinct **electric blue** color. Hovering a contributor's name in a HUD highlights all their branches simultaneously across the whole tree. |
-| 🔥 **High** **[ONGOING]**| **Hyper-Realistic Tree Rendering** | Increase fractal twig recursion depth to 4–5 levels, add wind-sway micro-animation along branch tips, and use parametric bark textures to make the tree feel like a true living organism rather than a glowing graph. |
+| ✅ **Completed** | **Hyper-Realistic Tree Rendering** | Upgraded to a 3D WebGL botanical tree with dynamic branch curves, bark textures, leaf clusters, wind sways, and glowing commit node light paths. |
 | 🟡 **Medium** | **Branch Merge Visualization** | Render merge commits as two branches physically weaving together — vines coiling around each other before joining the trunk. |
 | 🟡 **Medium** | **Commit Density Heatmap** | Color the trunk and branches by commit frequency — areas of rapid activity glow brighter yellow-white, while inactive periods dim to dark green. |
 | 🟡 **Medium** | **Multi-Repo Forest Mode** | Visualize multiple repositories simultaneously as separate trees in the same forest canvas, connected at the ground by roots. |
-| 🟢 **Low** | **3D Depth Projection** | Add a subtle isometric z-depth to branches so the tree appears to grow in 3D space, with closer branches appearing larger. |
+| ✅ **Completed** | **3D Depth Projection** | Fully mapped 2D coordinate projections to true 3D spatial curve coordinates with interactive camera rotation and zoom. |
 | ✅ **Completed** | **Export as SVG / Video** | Exporters for SVG vector files and WebM time-lapse video recordings are fully functional in the workspace. |
 | 🟢 **Low** | **GitHub Actions Integration** | Show CI/CD run status per commit as leaf health — failing builds make leaves wilt (curl up, turn grey), passing builds make them bright and fully open. |
 | ✅ **Completed** | **Auto Temp-Clone Cleanup Script** | A scheduled script (`server.js` process hook) that automatically deletes all `temp-clone-*` folders older than 24 hours on every server startup and midnight daily — preventing orphaned shallow clones from accumulating disk space. |
