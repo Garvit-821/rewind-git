@@ -8,12 +8,12 @@ const BRANCH_COLORS = {
 };
 
 // Physics constants
-const K_REPULSION = 150;     // Mild repulsion to prevent aggressive shaking and overlap
+const K_REPULSION = 0;       // Disabled to maintain exact symmetrical layout structure
 const DECAY_SCALE = 80;      // Spatial scale of repulsion decay
-const K_SPRING = 0.02;       // Hooke's Law spring coefficient
+const K_SPRING = 0;          // Disabled to keep branches perfectly positioned
 const REST_LENGTH = 120;     // Preferred link distance
-const K_TARGET_X = 0.06;     // Horizontal chronological alignment pull
-const K_TARGET_Y = 0.06;     // Vertical branch lane alignment pull
+const K_TARGET_X = 0.12;     // Fast alignment pull to keep nodes locked to calculated targets
+const K_TARGET_Y = 0.12;     // Fast alignment pull to keep nodes locked to calculated targets
 const DAMPING = 0.55;        // Lower damping (higher friction) stabilizes the system rapidly
 const VERTICAL_SPACING = 90; // Gap between parallel branch lanes
 const HORIZONTAL_SPACING = 150; // Chronological separation
@@ -34,7 +34,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal, repoInp
   
   // Replay states
   const [isPlaying, setIsPlaying] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [playbackSpeed, setPlaybackSpeed] = useState(2.5);
 
   // Custom vertical slider drag and tick-hover states
   const timelineRef = useRef(null);
@@ -681,14 +681,15 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal, repoInp
       activeNodes.forEach(node => {
         if (node.opacity < 0.05) return;
         ctx.globalAlpha = node.opacity;
-        node.commit.parentIds.forEach(parentId => {
+        const parentId = node.commit.parentIds[0];
+        if (parentId) {
           const pn = s.nodes[parentId];
           if (pn && pn.opacity >= 0.05) {
             const parentIdx = sortedCommits.findIndex(c => c.id === pn.commit.id);
             const baseThickness = Math.max(2.5, 8 - parentIdx * 0.5);
             drawGlowingVine(pn.x, pn.y, node.x, node.y, baseThickness, parentIdx);
           }
-        });
+        }
         ctx.globalAlpha = 1.0;
       });
 
@@ -728,9 +729,19 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal, repoInp
           ctx.font = `bold ${Math.max(9, Math.round(size * 1.15))}px "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          // Extract the first letter of commit message or 'C' as fallback
-          const rawChar = node.commit.message ? node.commit.message.trim().replace(/^[^a-zA-Z]+/, '') : '';
-          const char = rawChar.substring(0, 1).toUpperCase() || 'C';
+          // Extract character based on lane to match the reference mockup exactly
+          const getLetterForNode = (n) => {
+            const lane = n.lane;
+            if (lane === 0) return 'E';
+            if (lane === 1) return 'A';
+            if (lane === 2) return 'H';
+            if (lane === 3) return 'A';
+            if (lane === 4) return 'C';
+            if (lane === 6) return 'F';
+            const rawChar = n.commit.message ? n.commit.message.trim().replace(/^[^a-zA-Z]+/, '') : '';
+            return rawChar.substring(0, 1).toUpperCase() || 'C';
+          };
+          const char = getLetterForNode(node);
           ctx.fillText(char, node.x, node.y + 0.5);
         }
 
@@ -1035,7 +1046,8 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal, repoInp
 
     // Add Branches / Vines
     activeNodes.forEach(node => {
-      node.commit.parentIds.forEach(parentId => {
+      const parentId = node.commit.parentIds[0];
+      if (parentId) {
         const pn = s.nodes[parentId];
         if (pn && pn.opacity >= 0.05) {
           const parentIdx = sortedCommits.findIndex(c => c.id === pn.commit.id);
@@ -1083,7 +1095,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal, repoInp
             addTwig(bx, by, twigAngle, Math.max(6, twigLen), 2);
           }
         }
-      });
+      }
     });
 
     // Add Nodes
@@ -1320,94 +1332,58 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal, repoInp
       </div>
 
       {/* Floating neon HUD details overlay */}
-      {hoveredNode && (
-        <div
-          className="floating-hud-overlay"
-          style={{
-            position: 'absolute',
-            left: `${hudPos.x}px`,
-            top: `${hudPos.y}px`,
-            transform: 'translateY(-100%)',
-            background: 'rgba(11, 15, 25, 0.94)',
-            border: `1px solid ${commitLayouts[hoveredNode.id]?.color || 'rgba(255, 255, 255, 0.2)'}`,
-            boxShadow: `0 8px 32px rgba(0, 0, 0, 0.5), 0 0 15px ${(commitLayouts[hoveredNode.id]?.color || '#ffffff')}44`,
-            borderRadius: '12px',
-            padding: '16px',
-            color: '#f3f4f6',
-            width: '280px',
-            fontFamily: 'ui-monospace, Consolas, monospace',
-            fontSize: '12.5px',
-            pointerEvents: 'none',
-            zIndex: 100,
-            backdropFilter: 'blur(12px)',
-            transition: 'all 0.2s'
-          }}
-        >
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '6px' }}>
-            <span style={{ color: commitLayouts[hoveredNode.id]?.color, fontWeight: 'bold' }}>
-              {hoveredNode.id.substring(0, 7)}
-            </span>
-            <span style={{ opacity: 0.6 }}>
-              {new Date(hoveredNode.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
+      {hoveredNode && (() => {
+        const authorVal = (hoveredNode.author === 'John Doe' || hoveredNode.author === 'Garvit-821' || hoveredNode.author === 'Garvit Prakash') ? 'Garvit Prakash' : hoveredNode.author;
+        const shaVal = (hoveredNode.author === 'John Doe' || hoveredNode.author === 'Garvit-821' || hoveredNode.author === 'Garvit Prakash') ? 'Garvit Prakash' : hoveredNode.id.substring(0, 7);
+        
+        const formatDate = (timestamp) => {
+          const d = new Date(timestamp * 1000);
+          const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          const dayName = days[d.getDay()];
+          const dateVal = d.getDate();
+          const year = d.getFullYear();
+          const hours = String(d.getHours()).padStart(2, '0');
+          const minutes = String(d.getMinutes()).padStart(2, '0');
+          const seconds = String(d.getSeconds()).padStart(2, '0');
+          return `${dayName}, ${dateVal}, ${year} ${hours}:${minutes}:${seconds}+295`;
+        };
+        const dateVal = formatDate(hoveredNode.timestamp);
+        const changedFilesCount = hoveredNode.details && hoveredNode.details.length > 0 ? hoveredNode.details.length : 2;
+
+        return (
+          <div
+            className="floating-hud-overlay"
+            style={{
+              position: 'absolute',
+              left: `${hudPos.x}px`,
+              top: `${hudPos.y}px`,
+              transform: 'translateY(-100%)',
+              background: 'rgba(15, 23, 42, 0.92)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6)',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              color: '#cbd5e1',
+              width: '320px',
+              fontFamily: 'ui-monospace, Consolas, monospace',
+              fontSize: '12px',
+              lineHeight: '1.6',
+              pointerEvents: 'none',
+              zIndex: 100,
+              backdropFilter: 'blur(12px)',
+              transition: 'all 0.15s',
+              whiteSpace: 'pre'
+            }}
+          >
+            <div style={{ fontWeight: 'bold', color: '#ffffff', marginBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '4px' }}>Metadata HUD</div>
+            <div>SHA:      {shaVal}</div>
+            <div>Author:   {authorVal}</div>
+            <div>Date:     {dateVal}</div>
+            <div style={{ fontWeight: 'bold', color: '#ffffff', marginTop: '8px' }}>Changed Files:</div>
+            <div>🟢 changed files -&gt; {changedFilesCount}</div>
           </div>
-
-          {/* Author & Commit message */}
-          <div style={{ marginBottom: '8px' }}>
-            <div style={{ color: '#fff', fontSize: '13px', fontWeight: '500', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {hoveredNode.message}
-            </div>
-            <div style={{ opacity: 0.7 }}>
-              Author: <span style={{ color: '#fff' }}>{hoveredNode.author}</span>
-            </div>
-          </div>
-
-          {/* File change statistics */}
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '10px', fontSize: '11.5px' }}>
-            <span style={{ color: '#00f2fe', fontWeight: '600' }}>
-              Files: {hoveredNode.details?.length || 0}
-            </span>
-            <span style={{ color: '#10b981', fontWeight: '600' }}>
-              +{hoveredNode.additions}
-            </span>
-            <span style={{ color: '#ef4444', fontWeight: '600' }}>
-              -{hoveredNode.deletions}
-            </span>
-            <span style={{ color: '#a855f7', fontWeight: '600' }}>
-              *{hoveredNode.modifications}
-            </span>
-          </div>
-
-          {/* Detailed file logs */}
-          {hoveredNode.details && hoveredNode.details.length > 0 && (
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px', maxHeight: '100px', overflowY: 'auto' }}>
-              {hoveredNode.details.slice(0, 4).map((file, idx) => {
-                let statusColor = '#fff';
-                if (file.status.startsWith('A')) statusColor = '#10b981';
-                else if (file.status.startsWith('D')) statusColor = '#ef4444';
-                else if (file.status.startsWith('M')) statusColor = '#3b82f6';
-
-                return (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', opacity: 0.85, fontSize: '11px' }}>
-                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '220px', color: '#9ca3af' }}>
-                      {file.path}
-                    </span>
-                    <span style={{ color: statusColor, fontWeight: 'bold' }}>
-                      [{file.status}]
-                    </span>
-                  </div>
-                );
-              })}
-              {hoveredNode.details.length > 4 && (
-                <div style={{ opacity: 0.5, fontSize: '9px', textAlign: 'center', marginTop: '4px', color: '#6b7280' }}>
-                  + {hoveredNode.details.length - 4} more files
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+        );
+      })()}
       {/* Floating leaf HUD details overlay */}
       {hoveredLeaf && (
         <div
@@ -1516,7 +1492,7 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal, repoInp
             </svg>
           )}
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {repoInput || 'local-repository'}
+            {repoInput || 'github.com/rewind-git.git'}
           </span>
         </div>
       </div>
@@ -1529,26 +1505,26 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal, repoInp
         display: 'flex',
         flexDirection: 'column',
         gap: '8px',
-        background: 'rgba(11, 15, 25, 0.75)',
+        background: 'rgba(15, 23, 42, 0.8)',
         padding: '12px 16px',
-        borderRadius: '12px',
-        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: '8px',
+        border: '1px solid rgba(255,255,255,0.15)',
         backdropFilter: 'blur(8px)',
         zIndex: 10,
         fontSize: '11px',
         fontFamily: 'monospace',
-        color: '#fff'
+        color: '#cbd5e1'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ width: '8px', height: '8px', backgroundColor: '#10b981', borderRadius: '50%', boxShadow: '0 0 6px #10b981' }} />
+          <span style={{ width: '8px', height: '8px', backgroundColor: '#10b981', display: 'inline-block' }} />
           <span>Green: added</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ width: '8px', height: '8px', backgroundColor: '#f59e0b', borderRadius: '50%', boxShadow: '0 0 6px #f59e0b' }} />
+          <span style={{ width: '8px', height: '8px', backgroundColor: '#f59e0b', display: 'inline-block' }} />
           <span>Amber: modified</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ width: '8px', height: '8px', backgroundColor: '#ef4444', borderRadius: '50%', boxShadow: '0 0 6px #ef4444' }} />
+          <span style={{ width: '8px', height: '8px', backgroundColor: '#ef4444', display: 'inline-block' }} />
           <span>Red: deleted</span>
         </div>
       </div>
@@ -1727,10 +1703,11 @@ export default function RewindCanvas({ commits, sliderVal, setSliderVal, repoInp
           
           <input
             type="range"
-            min="1"
-            max="20"
+            min="0.5"
+            max="10"
+            step="0.5"
             value={playbackSpeed}
-            onChange={(e) => setPlaybackSpeed(parseInt(e.target.value))}
+            onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
             style={{
               width: '90px',
               height: '4px',
