@@ -45,8 +45,13 @@ export default function App() {
           filePath
         })
       });
-      if (!response.ok) throw new Error('Failed to load file');
-      const data = await response.json();
+      if (!response.ok) throw new Error(`Failed to load file. Status: ${response.status}`);
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        throw new Error('Invalid JSON response from server');
+      }
       setFileContentsCache(prev => ({
         ...prev,
         [cacheKey]: data.content
@@ -198,12 +203,28 @@ export default function App() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to harvest history.');
+        let errorMsg = '';
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.error;
+        } catch (_) {
+          try {
+            const text = await response.text();
+            errorMsg = text || `Server returned status ${response.status}: ${response.statusText}`;
+          } catch (__) {
+            errorMsg = `Server returned status ${response.status}: ${response.statusText}`;
+          }
+        }
+        throw new Error(errorMsg || 'Failed to harvest history.');
       }
 
       setLoadingStatus('Structuring logs and code files...');
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        throw new Error('Received an invalid, non-JSON response from the server.');
+      }
       
       if (!data.commits || data.commits.length === 0) {
         throw new Error('No commits were found in the specified repository.');
@@ -212,7 +233,11 @@ export default function App() {
       updateCommits(data.commits);
     } catch (err) {
       console.error(err);
-      setErrorMessage(err.message || 'Failed to connect to local harvester backend. Ensure "node server.js" is running.');
+      setErrorMessage(
+        err.message && !err.message.includes('Unexpected end of JSON input') && !err.message.includes('invalid JSON')
+          ? err.message
+          : 'Failed to connect to local harvester backend. Ensure "npm run dev:server" or "node server.js" is running.'
+      );
     } finally {
       setIsLoading(false);
       setLoadingStatus('');

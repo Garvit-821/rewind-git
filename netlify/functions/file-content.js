@@ -1,4 +1,4 @@
-import { exec } from 'child_process';
+import git from 'isomorphic-git';
 import fs from 'fs';
 import path from 'path';
 
@@ -6,8 +6,6 @@ const TEMP_DIR = '/tmp';
 const TEMP_DIR_PREFIX = 'rewind-clone-';
 
 // Mirror the same in-memory cache used by harvest.js
-// (Note: on Netlify each function invocation may be a fresh instance;
-//  for same-session warm invocations it works perfectly)
 const activeTempRepos = new Map();
 
 function corsHeaders() {
@@ -53,13 +51,21 @@ export const handler = async (event) => {
       }
     }
 
-    const content = await new Promise((resolve) => {
-      exec(
-        `git show ${commitId}:"${filePath}"`,
-        { cwd: targetPath, maxBuffer: 15 * 1024 * 1024, timeout: 20000 },
-        (error, stdout) => resolve(error ? '' : stdout)
-      );
-    });
+    // Read the file contents using isomorphic-git's readBlob
+    const content = await (async () => {
+      try {
+        const { blob } = await git.readBlob({
+          fs,
+          dir: targetPath,
+          oid: commitId,
+          filepath: filePath
+        });
+        return new TextDecoder().decode(blob);
+      } catch (err) {
+        console.error(`[file-content fn] Failed to read ${filePath} at ${commitId}:`, err.message);
+        return '';
+      }
+    })();
 
     return { statusCode: 200, headers: corsHeaders(), body: JSON.stringify({ content }) };
   } catch (err) {

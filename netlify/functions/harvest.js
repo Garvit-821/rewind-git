@@ -1,7 +1,7 @@
-import { exec } from 'child_process';
+import git from 'isomorphic-git';
+import http from 'isomorphic-git/http/node/index.js';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
 const TEMP_DIR = '/tmp';
 const TEMP_DIR_PREFIX = 'rewind-clone-';
@@ -9,68 +9,56 @@ const TEMP_DIR_PREFIX = 'rewind-clone-';
 // In-memory cache mapping remote URL -> local /tmp path (per function instance)
 const activeTempRepos = new Map();
 
-function runCmd(cmd, cwd = TEMP_DIR) {
-  return new Promise((resolve, reject) => {
-    exec(cmd, { cwd, maxBuffer: 25 * 1024 * 1024, timeout: 55000 }, (error, stdout, stderr) => {
-      if (error) reject(new Error(stderr || error.message));
-      else resolve(stdout);
-    });
-  });
-}
+async function getCommitDiff(dir, commitOid, parentOid) {
+  const trees = [];
+  if (parentOid) {
+    trees.push(git.TREE({ ref: parentOid }));
+  } else {
+    trees.push(null);
+  }
+  trees.push(git.TREE({ ref: commitOid }));
 
-/**
- * Parse raw `git log --pretty=format:"%H|%P|%an|%at|%s" --raw` output
- * into structured commit objects. Mirrors harvester.js logic but runs
- * entirely inside the serverless function (no child import needed).
- */
-function parseGitLog(stdout) {
-  const lines = stdout.split(/\r?\n/);
-  const commits = [];
-  let currentCommit = null;
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-
-    if (trimmed.startsWith(':')) {
-      if (currentCommit) {
-        const tabIndex = trimmed.indexOf('\t');
-        if (tabIndex !== -1) {
-          const metaPart = trimmed.slice(0, tabIndex).trim();
-          const pathPart = trimmed.slice(tabIndex + 1);
-          const metaTokens = metaPart.split(/\s+/);
-          if (metaTokens.length >= 5) {
-            const statusToken = metaTokens[4];
-            currentCommit.details.push({ status: statusToken, path: pathPart });
-            if (statusToken.startsWith('A')) currentCommit.additions++;
-            else if (statusToken.startsWith('D')) currentCommit.deletions++;
-            else currentCommit.modifications++;
+  try {
+    const walkResult = await git.walk({
+      fs,
+      dir,
+      trees,
+      filter: async function (filepath, [A, B]) {
+        if (A && B) {
+          const oida = await A.oid();
+          const oidb = await B.oid();
+          if (oida === oidb) {
+            return false; // Skip identical directories/files (do not descend)
           }
         }
-      }
-    } else if (trimmed.includes('|')) {
-      const parts = trimmed.split('|');
-      const id = parts[0];
-      const parentField = parts[1] || '';
-      const author = parts[2] || 'Unknown';
-      const timestampVal = parseInt(parts[3], 10) || Math.floor(Date.now() / 1000);
-      const message = parts.slice(4).join('|');
-      const parentIds = parentField ? parentField.split(' ').filter(Boolean) : [];
+        return true;
+      },
+      map: async function (filepath, [A, B]) {
+        if (filepath === '.') return;
 
-      if (currentCommit) {
-        currentCommit.filesChanged = currentCommit.additions + currentCommit.deletions;
-        commits.push(currentCommit);
-      }
-      currentCommit = { id, parentIds, author, timestamp: timestampVal, message,
-        filesChanged: 0, additions: 0, deletions: 0, modifications: 0, details: [] };
-    }
-  }
+        const typeA = A ? await A.type() : null;
+        const typeB = B ? await B.type() : null;
 
-  if (currentCommit) {
-    currentCommit.filesChanged = currentCommit.additions + currentCommit.deletions;
-    commits.push(currentCommit);
+        if (typeA === 'tree' || typeB === 'tree') {
+          return; // Skip directories from file diff
+        }
+
+        const oida = A ? await A.oid() : null;
+        const oidb = B ? await B.oid() : null;
+
+        let status = 'M';
+        if (!oida && oidb) status = 'A';
+        else if (oida && !oidb) status = 'D';
+
+        return { status, path: filepath };
+      }
+    });
+
+    return walkResult.filter(Boolean);
+  } catch (err) {
+    console.error(`[harvest fn] Error diffing ${commitOid} with ${parentOid}:`, err.message);
+    return [];
   }
-  return commits;
 }
 
 export const handler = async (event) => {
@@ -104,7 +92,14 @@ export const handler = async (event) => {
       targetPath = path.join(TEMP_DIR, folderName);
 
       console.log(`[harvest fn] Cloning ${repoInput} -> ${targetPath}`);
-      await runCmd(`git clone --depth 500 "${repoInput}" "${targetPath}"`);
+      await git.clone({
+        fs,
+        http,
+        dir: targetPath,
+        url: repoInput,
+        singleBranch: true,
+        depth: 250 // Fetch enough commits for history but limit size
+      });
       activeTempRepos.set(repoInput, targetPath);
     } else {
       // Local path — only valid when self-hosting / Netlify dev
@@ -115,12 +110,43 @@ export const handler = async (event) => {
       }
     }
 
-    const logOutput = await runCmd(
-      'git log --pretty=format:"%H|%P|%an|%at|%s" --raw',
-      targetPath
-    );
+    console.log(`[harvest fn] Reading logs from ${targetPath}`);
+    const rawCommits = await git.log({
+      fs,
+      dir: targetPath,
+      depth: 250
+    });
 
-    const commits = parseGitLog(logOutput);
+    const commits = [];
+    for (const c of rawCommits) {
+      const parentIds = c.commit.parent || [];
+      const primaryParent = parentIds[0] || null;
+      const details = await getCommitDiff(targetPath, c.oid, primaryParent);
+
+      let additions = 0;
+      let deletions = 0;
+      let modifications = 0;
+
+      details.forEach(item => {
+        if (item.status === 'A') additions++;
+        else if (item.status === 'D') deletions++;
+        else modifications++;
+      });
+
+      commits.push({
+        id: c.oid,
+        parentIds,
+        author: c.commit.author.name || 'Unknown',
+        timestamp: c.commit.author.timestamp,
+        message: c.commit.message.trim(),
+        filesChanged: additions + deletions,
+        additions,
+        deletions,
+        modifications,
+        details
+      });
+    }
+
     return {
       statusCode: 200,
       headers: corsHeaders(),
